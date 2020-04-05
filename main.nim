@@ -5,6 +5,7 @@ import bitops
 import types
 import cpu
 import cartridge
+import debugger
 
 proc powerOn(gameboy:var Gameboy) =
     # CPU Initialization
@@ -52,9 +53,10 @@ var gameboy = newGameboy()
 #echo gameboy.readByte(0xB001)
 #echo repr(gameboy.cpu)
 
-gameboy.cartridge.loadRomFile("./roms/tetris.gb")
+#gameboy.cartridge.loadRomFile("./roms/tetris.gb")
 
 #for x in countup(0x100, 0x1FF):
 #  discard gameboy.readByte(uint16(x))
 
-gameboy.cartridge.displayROMData()
+#gameboy.cartridge.displayROMData()
+launchDebugger(gameboy)
