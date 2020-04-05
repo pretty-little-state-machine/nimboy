@@ -1,17 +1,9 @@
 import algorithm
 import streams
+import os
 import strutils
+import types
 import nimboyutils
-
-type
-  Cartridge* = object
-    loaded: bool
-    fixedROM: array[16*1024'u16, uint8]        # 16KB of Fixed ROM Bank 0 ($0000-$3FFF)
-    internalROM: array[128*16*1024'u32, uint8] # 2MB Max rom size - MBC3 (128 Banks of 16K)
-    internalRAM: array[4*8*1024'u16, uint8]    # 32KB Max RAM size - MBC3 (4 banks of 8K)
-    romPage: uint16
-    ramPage: uint16
-    writeEnabeld: bool
 
 # Reads a byte from the cartridge with paging. 
 # Valid address requests directed to this proc:
@@ -32,8 +24,6 @@ proc readByte*(cartridge: Cartridge; address: uint16):uint8 {.noSideEffect.} =
     let offset = (cartridge.ramPage * 8192) + address - 0xA000
     debugEcho("MEMREAD: ", $toHex(address), " : ", $toHex(offset) , " : Cartridge Paged RAM : Page ", cartridge.romPage)
     return cartridge.internalRAM[offset]
-
-
 
 # Reads a byte from the cartridge with paging. 
 # Valid address requests directed to this proc:
@@ -58,11 +48,14 @@ proc writeByte*(cartridge: var Cartridge; address: uint16; value: uint8):uint8 =
     return cartridge.internalRAM[offset]
 
 proc loadRomFile*(cartridge: var Cartridge; path: string) = 
-  var stream = newFileStream(path)
-  discard stream.readData(addr(cartridge.fixedROM), 16384)
-  discard stream.readData(addr(cartridge.internalROM), 2097152)
-  cartridge.loaded = true
-  stream.close()
+  if existsFile(path):
+    var stream = newFileStream(path)
+    discard stream.readData(addr(cartridge.fixedROM), cartridge.fixedROM.len)
+    discard stream.readData(addr(cartridge.internalROM), cartridge.internalROM.len)
+    cartridge.loaded = true
+    stream.close()
+  else:
+    discard
 
 proc unloadRom*(cartridge: var Cartridge) = 
   cartridge.fixedROM.fill(0)
@@ -70,9 +63,104 @@ proc unloadRom*(cartridge: var Cartridge) =
   cartridge.internalRAM.fill(0)
   cartridge.loaded = false
 
-proc getRomTitle*(cartridge: Cartridge): string =
-  if cartridge.loaded:
-    return byteSeqToString(cartridge.fixedROM[0x0134..0x142])
+proc getRomDetailStr*(cartridge: Cartridge): string =
+  if not cartridge.loaded: return "No ROM Loaded"
+  var s: string
+  s &= byteSeqToString(cartridge.fixedROM[0x0134..0x142])
+  s &= " - "
+  case (cartridge.fixedROM[0x0147]):
+  of 0x00:
+    s &= "ROM ONLY"
+  of 0x01:
+    s &= "ROM + MBC1"
+  of 0x02:
+    s &= "ROM + MBC1 + RAM"
+  of 0x03:
+    s &= "ROM + MBC1 + Battery"
+  of 0x05:
+    s &= "ROM + MBC2"
+  of 0x06:
+    s &= "ROM + MBC2 + Battery"
+  of 0x08:
+    s &= "ROM + RAM"
+  of 0x09:
+    s &= "ROM + RAM + Battery"
+  of 0x0B:
+    s &= "ROM + MMM01"
+  of 0x0C:
+    s &= "ROM + MMM01 + SRAM"
+  of 0x0D:
+    s &= "ROM + MMM01 + SRAM + Battery"
+  of 0x0F:
+    s &= "ROM + MBC3 + Timer + Battery"
+  of 0x10:
+    s &= "ROM + MBC3 + RAM + Timer + Battery"
+  of 0x11:
+    s &= "ROM + MBC3"
+  of 0x12:
+    s &= "ROM + MBC3 + RAM"
+  of 0x13:
+    s &= "ROM + MBC3 + RAM + Battery"
+  of 0x19:
+    s &= "ROM + MBC5"
+  of 0x1A:
+    s &= "ROM + MBC5 + RAM"
+  of 0x1B:
+    s &= "ROM + MBC5 + RAM + Battery"
+  of 0x1C:
+    s &= "ROM + MBC5 + Rumble"
+  of 0x1D:
+    s &= "ROM + MBC5 + Rumble + SRAM"
+  of 0x1E:
+    s &= "ROM + MBC5 + Rumble + SRAM + Battery"
+  of 0x1F:
+    s &= "Pocket Camera"
+  of 0xFD:
+    s &= "Bandai TAMA5"
+  of 0xFE:
+    s &= "Hudson HuC-3"
+  of 0xFF:
+    s &= "Hudson HuC-1"
   else:
-    return "No ROM Loaded"
-
+    s &= "Unknown Cartridge Type"
+  #ROM
+  s &= " - "
+  case (cartridge.fixedROM[0x0148]):
+  of 0x00:
+    s &= "256 Kbit ROM (2 Banks)"
+  of 0x01:
+    s &= "512 Kbit ROM (4 Banks)"
+  of 0x02:
+    s &= "1 Mbit ROM (8 Banks)"
+  of 0x03:
+    s &= "2 Mbit ROM (16 Banks)"
+  of 0x04:
+    s &= "4 Mbit ROM (32 Banks)"
+  of 0x05:
+    s &= "8 Mbit ROM (64 Banks)"
+  of 0x06:
+    s &= "16 Mbit ROM (128 Banks)"
+  of 0x52:
+    s &= "9 Mbit ROM (72 Banks)"
+  of 0x53:
+    s &= "10 Mbit ROM (80 Banks)"
+  of 0x54:
+    s &= "12 Mbit ROM (96 Banks)"
+  else:
+    s &= "Unknown ROM Configuration"
+  # RAM
+  s &= " - "
+  case (cartridge.fixedROM[0x0149]):
+  of 0x00: 
+    s &= "No RAM"
+  of 0x01:
+    s &= "16 Kbit RAM (1 Bank)"
+  of 0x02:
+    s &= "64 Kbit RAM (1 Bank)"
+  of 0x03:
+    s &= "256 Kbit RAM (4 Banks)"
+  of 0x04:
+    s &= "1 Mbit RAM (16 Banks)"
+  else:
+    s &= "Unknown RAM Configuration"
+  return s
