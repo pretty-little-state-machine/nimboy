@@ -1,3 +1,6 @@
+import bitops
+import strutils
+
 # Nimboy imports
 import debugger
 import gameboy

@@ -7,11 +7,12 @@ type
 
   CPU* = object
     mem*: CPUMemory
-    mClock*: uint64     # Machine Cycles
-    tClock*: uint64     # Ticks
-    pc*, sp*: uint16    # 16-bit Program Counter and Stack Pointer
-    a*, b*, c*, d*, e*, h*, l*: uint8 # General purpose registers
-    f*: uint8           # "Flags" Register [Z N H C 0 0 0 0]
+    mClock*: uint64       # Machine Cycles
+    tClock*: uint64       # Ticks
+    pc*, sp*: uint16      # 16-bit Program Counter and Stack Pointer
+    a*: uint8             # 8-Bit accumulator
+    bc*, de*, hl*: uint16 # General purpose registers - Also operate as 8-bit combos
+    f*: uint8             # "Flags" Register [Z N H C 0 0 0 0]
     halted*: bool
 
   CPUMemory* = ref object
