@@ -9,6 +9,9 @@ proc powerOn(gameboy:var Gameboy) =
     gameboy.cpu.c = 0x13'u8 
     gameboy.cpu.d = 0xd8'u8 shr 8
     gameboy.cpu.e = 0xd8'u8
+    gameboy.cpu.f = 0xb0'u8
+    gameboy.cpu.h = 0x01'u8
+    gameboy.cpu.l = 0x4d'u8
     gameboy.cpu.sp = 0xfffe'u16
     gameboy.cpu.pc = 0x0100'u16
 
