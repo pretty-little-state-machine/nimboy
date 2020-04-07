@@ -12,6 +12,7 @@ proc powerOn(gameboy:var Gameboy) =
     gameboy.cpu.sp = 0xfffe'u16
     gameboy.cpu.pc = 0x0100'u16
 
+
 proc newGameboy*(): Gameboy =
     new result
     result.powerOn

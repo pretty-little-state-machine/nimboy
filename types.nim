@@ -3,6 +3,7 @@ type
   GameboyObj* = object
     cpu*: CPU
     cartridge*: Cartridge
+    timer*: Timer
     internalRam: array[8*1024'u16, uint8] # Internal RAM ($C000-$DFFF, read-only echo at $E000 - $FE00)
     osc*: uint32  # Internal Oscillator
 
