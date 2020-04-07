@@ -4,16 +4,28 @@ type
     cpu*: CPU
     cartridge*: Cartridge
     internalRam: array[8*1024'u16, uint8] # Internal RAM ($C000-$DFFF, read-only echo at $E000 - $FE00)
+    osc*: uint32  # Internal Oscillator
 
+  # Timer subsystem
+  Timer = object
+    divReg*: DivReg     # Divider Register - At memory location 0xFF04 - Only MSB accessible
+    timaCounter*: uint8  # Timer Counter - At memory locaton 0xFF05
+    timaModulo*: uint8   # Timer Modulo - When TimaCounter overflows this value is loaded into Tima Counter
+    tac*: uint8
+
+  DivReg = object
+    counter*: uint16    # Only the MSB is accessible
+
+  # CPU Subsystem
   CPU* = object
-    mem*: CPUMemory
-    mClock*: uint64       # Machine Cycles
-    tClock*: uint64       # Ticks
+    mem*: CPUMemory       # Ref back to gameboy - Avoids ciruclar references in NIM
+    mClock*: uint8        # Machine Cycles
+    tClock*: uint8        # Ticks
     pc*, sp*: uint16      # 16-bit Program Counter and Stack Pointer
     a*: uint8             # 8-Bit accumulator
     bc*, de*, hl*: uint16 # General purpose registers - Also operate as 8-bit combos
     f*: uint8             # "Flags" Register [Z N H C 0 0 0 0]
-    halted*: bool
+    halted*: bool         # Halted state for CPU power savings
     breakpoint*: uint16   # Single breakpoint for now
     diPending*: bool      # Set when the DI opcode is issued 
     eiPending*: bool      # Set when the EI Opcode is issued
