@@ -14,6 +14,10 @@ type
     bc*, de*, hl*: uint16 # General purpose registers - Also operate as 8-bit combos
     f*: uint8             # "Flags" Register [Z N H C 0 0 0 0]
     halted*: bool
+    breakpoint*: uint16   # Single breakpoint for now
+    diPending*: bool      # Set when the DI opcode is issued 
+    eiPending*: bool      # Set when the EI Opcode is issued
+    interuptStatus*: bool # Interupt Status
 
   CPUMemory* = ref object
       gameboy*: Gameboy

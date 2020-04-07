@@ -14,15 +14,15 @@ proc readByte*(cartridge: Cartridge; address: uint16):uint8 {.noSideEffect.} =
   # $A000 - $BFFF -  8K Paged RAM 
   if address < 0x4000:
     let value = cartridge.fixedROM[address]
-    debugEcho("MEMREAD: ", $toHex(address), " : ", $toHex(address), " : ", $toHex(value), " : ", "Cartridge Fixed ROM")
+    #debugEcho("MEMREAD: ", $toHex(address), " : ", $toHex(address), " : ", $toHex(value), " : ", "Cartridge Fixed ROM")
     return value
   elif address < 0x8000:
     let offset = (cartridge.romPage * 8192) + address - 0x4000
-    debugEcho("MEMREAD: ", $toHex(address), " : ", $toHex(offset) , " : Cartridge Paged ROM : Page ", cartridge.romPage)
+    #debugEcho("MEMREAD: ", $toHex(address), " : ", $toHex(offset) , " : Cartridge Paged ROM : Page ", cartridge.romPage)
     return cartridge.internalROM[offset]
   else:
     let offset = (cartridge.ramPage * 8192) + address - 0xA000
-    debugEcho("MEMREAD: ", $toHex(address), " : ", $toHex(offset) , " : Cartridge Paged RAM : Page ", cartridge.romPage)
+    #debugEcho("MEMREAD: ", $toHex(address), " : ", $toHex(offset) , " : Cartridge Paged RAM : Page ", cartridge.romPage)
     return cartridge.internalRAM[offset]
 
 proc writeByte*(cartridge: var Cartridge; address: uint16; value: uint8):uint8 =
@@ -35,15 +35,15 @@ proc writeByte*(cartridge: var Cartridge; address: uint16; value: uint8):uint8 =
   #
   # TODO: Handle the million MBC models and pagination and all sorts of stuff!
   if address < 0x4000:
-    debugEcho("MEMWRITE: ", $toHex(address), " : ", $toHex(address), " : TODO: PAGING")
+    #debugEcho("MEMWRITE: ", $toHex(address), " : ", $toHex(address), " : TODO: PAGING")
     return cartridge.fixedROM[address]
   if address < 0x8000:
     let offset = (cartridge.romPage * 8192) + address - 0x4000
-    debugEcho("MEMWRITE: ", $toHex(address), " : ", $toHex(address), " : TODO: PAGING")
+    #debugEcho("MEMWRITE: ", $toHex(address), " : ", $toHex(address), " : TODO: PAGING")
     return cartridge.internalROM[offset]
   else:
     let offset = (cartridge.ramPage * 8192) + address - 0xA000
-    debugEcho("MEMWRITE: ", $toHex(address), " : ", $toHex(offset) , " : Cartridge Paged RAM : Page ", cartridge.romPage)
+    #debugEcho("MEMWRITE: ", $toHex(address), " : ", $toHex(offset) , " : Cartridge Paged RAM : Page ", cartridge.romPage)
     cartridge.internalRAM[offset] = value
     return cartridge.internalRAM[offset]
 
