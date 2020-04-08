@@ -203,7 +203,7 @@ proc step*(cpu: var CPU): string =
     var r = $toHex(cpu.pc) & " : " & cpu.execute(cpu.mem.gameboy.readByte(cpu.pc))
     if cpu.diPending:
       cpu.diPending = false;
-      cpu.interuptStatus = false
+      cpu.intStatus = false
     return r
 
 proc addBreakpoint*(cpu: var CPU; breakpoint: uint16) =

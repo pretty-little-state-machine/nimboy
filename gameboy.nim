@@ -1,7 +1,11 @@
+import bitops
 import types
 import cpu
 import memory
+import timer
+
 proc powerOn(gameboy:var Gameboy) =
+    gameboy.intEnable = 0xFA'u8 # TODO IS THIS RIGHT
     gameboy.cpu.mem = newCPUMemory(gameboy)
     # CPU Initialization
     gameboy.cpu.a = 0x01'u8
@@ -11,6 +15,7 @@ proc powerOn(gameboy:var Gameboy) =
     gameboy.cpu.hl = 0x014d'u16
     gameboy.cpu.sp = 0xfffe'u16
     gameboy.cpu.pc = 0x0100'u16
+    gameboy.cpu.intStatus = true
 
 
 proc newGameboy*(): Gameboy =
@@ -18,4 +23,5 @@ proc newGameboy*(): Gameboy =
     result.powerOn
 
 proc step*(gameboy: var Gameboy): string = 
+    gameboy.timer.tick()
     return gameboy.cpu.step()

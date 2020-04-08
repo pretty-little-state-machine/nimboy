@@ -1,8 +1,9 @@
-import strutils
 import types
+import bitops
 import cartridge
 
 export types.CPUMemory
+
 
 proc readByte*(gameboy: Gameboy, address: uint16): uint8 =
     if address < 0x8000:
@@ -30,3 +31,8 @@ proc writeByte*(gameboy: Gameboy, address: uint16, value: uint8): uint8 =
 
 proc newCPUMemory*(gameboy: Gameboy): CPUMemory =
   CPUMemory(gameboy: gameboy)
+
+proc triggerTimerInterrupt*(gameboy: var Gameboy) =
+  var ie = gameboy.readByte(0xFFFF)
+  ie.setBit(2)
+  discard gameboy.writeByte(0xFFFF, ie)

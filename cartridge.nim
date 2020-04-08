@@ -1,7 +1,6 @@
 import algorithm
 import streams
 import os
-import strutils
 import types
 import nimboyutils
 
