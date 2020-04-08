@@ -138,7 +138,7 @@ proc execute (cpu: var CPU; opcode: uint8): string =
     cpu.pc += 3
     decode = "LD HL " & $toHex(word)
   of 0x32:
-    discard cpu.mem.gameboy.writeByte(cpu.hl, cpu.a)
+    cpu.mem.gameboy.writeByte(cpu.hl, cpu.a)
     cpu.hl -= 1
     cpu.tClock += 8
     cpu.mClock += 2
@@ -172,7 +172,7 @@ proc execute (cpu: var CPU; opcode: uint8): string =
   of 0xE0:
     var word = 0xFF00'u16
     word = bitOr(word, uint16(cpu.mem.gameboy.readbyte(cpu.pc + 1)))
-    discard cpu.mem.gameboy.writeByte(word, cpu.a)
+    cpu.mem.gameboy.writeByte(word, cpu.a)
     cpu.tClock += 12
     cpu.mClock += 4
     cpu.pc += 2
@@ -190,21 +190,94 @@ proc execute (cpu: var CPU; opcode: uint8): string =
     cpu.tClock += 4
     cpu.mClock += 1
     cpu.pc += 1
-    cpu.diPending = true
+    cpu.ime = false # Interrupts are immediately disabled!
     decode = "DI"
+  of 0xFE:
+    cpu.tClock += 4
+    cpu.mClock += 1
+    cpu.pc += 1
+    cpu.eiPending = true # Interrupts are NOT immediately enabled!
+    decode = "EI"
   else:
     decode = "UNKNOWN OPCODE: " & $toHex(opcode)
   return decode
 
+proc push(cpu: var CPU; address: uint16; value: uint8): void =
+  # Push onto the stack. This does NOT calculate any cycles for this.
+  cpu.mem.gameboy.writeByte(address, readLsb(cpu.pc))
+  cpu.sp -= 1
+  cpu.mem.gameboy.writeByte(address, readMsb(cpu.pc))
+
+proc call(cpu: var CPU; address: uint16): void =
+  # Push onto the stack. This does NOT calculate any cycles for this.
+  cpu.mem.gameboy.writeByte(address, readLsb(cpu.pc))
+  cpu.sp -= 1
+  cpu.mem.gameboy.writeByte(address, readMsb(cpu.pc))
+
+proc callInterrupt(cpu: var CPU; address: uint16): string =
+  # Call for interrupt handling. Automatically takes care of halt penalties
+  if cpu.halted: # Clear halted status in all cases
+    cpu.tClock += 4
+    cpu.mClock += 1
+    cpu.halted = false
+  if cpu.ime:
+    cpu.mem.gameboy.clearAllInterrupts()
+    cpu.call(cpu.sp)
+    cpu.pc = address
+    cpu.tClock += 20
+    cpu.mClock += 5
+    return "INTERRUPT: VSync"
+  return ""
+
+proc handleInterrupts(cpu: var CPU): string =
+  # Process Interrupts and clears the HALT status.
+  #
+  # WARNING: 
+  # The call is only executed if the global IME (Interrupt Enable) is set
+  # The Halt flag is _always_ cleared, regardless of the IME. If the halt
+  # flag has to be cleared there is a 4 cycle penalty for the operation.
+
+  var penalty = 0
+  if cpu.halted:
+    penalty = 4
+
+  if cpu.mem.gameboy.testVsyncInterrupt() and cpu.mem.gameboy.testVsyncIntEnabled():
+    return cpu.callInterrupt(0x0040)
+  elif cpu.mem.gameboy.testLCDStatInterrupt() and cpu.mem.gameboy.testLCDStatIntEnabled():
+    return cpu.callInterrupt(0x0048)
+  elif cpu.mem.gameboy.testTimerInterrupt() and cpu.mem.gameboy.testTimerIntEnabled():
+    return cpu.callInterrupt(0x0050)
+  elif cpu.mem.gameboy.testSerialInterrupt() and cpu.mem.gameboy.testSerialIntEnabled():
+    return cpu.callInterrupt(0x0058)
+  elif cpu.mem.gameboy.testJoypadInterrupt() and cpu.mem.gameboy.testJoypadIntEnabled():
+    return cpu.callInterrupt(0x0060)
+  else:
+    discard
+  return ""
+
 proc step*(cpu: var CPU): string =   
+  # Executes a single step for the CPU
   if cpu.breakpoint == cpu.pc:
     return "BREAK"
-  else:
-    var r = $toHex(cpu.pc) & " : " & cpu.execute(cpu.mem.gameboy.readByte(cpu.pc))
-    if cpu.diPending:
-      cpu.diPending = false;
-      cpu.interuptStatus = false
-    return r
+
+  # TODO: I don't like the way I'm handling the return statement here.
+  let intResult = cpu.handleInterrupts()
+  if "INTERRUPT" in intResult:
+    return intResult
+
+  # If there's pending interrupt enable, flip it off and queue up the toggle.
+  var enableInterrupts = false
+  if cpu.eiPending:
+    cpu.eiPending = false
+    enableInterrupts = true
+
+  # Execute the next instruction
+  var r = $toHex(cpu.pc) & " : " & cpu.execute(cpu.mem.gameboy.readByte(cpu.pc))
+  
+  # Process the enableInterrupts toggle if it was queued
+  if enableInterrupts:
+    cpu.ime = true;
+  return r
 
 proc addBreakpoint*(cpu: var CPU; breakpoint: uint16) =
   cpu.breakpoint = breakpoint

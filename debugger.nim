@@ -1,4 +1,3 @@
-import os
 import parseutils
 import strutils
 import terminal
@@ -93,18 +92,139 @@ proc drawCpu(cpu: CPU) =
   stdout.write("├────────────────┤")
   # Breakpoint!
   setCursorPos(90,14)
-  stdout.write "│  Break: " & ($tohex(cpu.breakpoint))
+  stdout.write "│   Break: " & ($tohex(cpu.breakpoint))
+  # Done with CPU
   setCursorPos(90,15)
-  stdout.write("╰────────────────┤")
+  stdout.write("├────────────────┤")
 
 proc drawTitle(cartridge: Cartridge) =
   setCursorPos(1,1)
   stdout.write(cartridge.getRomDetailStr())
 
+proc drawInterrupts(gameboy: Gameboy) = 
+  setCursorPos(90,16)
+  stdout.write ("│ Joypad: ")
+  if (testBit(gameboy.intEnable, 4)):
+    setForegroundColor(fgGreen, false)
+    setCursorPos(100, 16)
+    stdout.write("ENA")
+  else:
+    setForegroundColor(fgRed, false)
+    setCursorPos(100, 16)
+    stdout.write("DIS")
+  if(testBit(gameboy.intFlag, 4)):
+    setForegroundColor(fgRed, true)
+    setCursorPos(104, 16)
+    stdout.write("TRG")
+  else:
+    setForegroundColor(fgWhite, false)
+    setCursorPos(104, 16)
+    stdout.write("---")
+  #
+  setForegroundColor(fgWhite, true)
+  setCursorPos(90,17)
+  stdout.write ("│ Serial: ")
+  if (testBit(gameboy.intEnable, 3)):
+    setForegroundColor(fgGreen, false)
+    setCursorPos(100, 17)
+    stdout.write("ENA")
+  else:
+    setForegroundColor(fgRed, false)
+    setCursorPos(100, 17)
+    stdout.write("DIS")
+  if(testBit(gameboy.intFlag, 3)):
+    setForegroundColor(fgRed, true)
+    setCursorPos(104, 17)
+    stdout.write("TRG")
+  else:
+    setForegroundColor(fgWhite, false)
+    setCursorPos(104, 17)
+    stdout.write("---")
+  #
+  setForegroundColor(fgWhite, true)
+  setCursorPos(90, 18)
+  stdout.write ("│  Timer: ")
+  if (testBit(gameboy.intEnable, 2)):
+    setForegroundColor(fgGreen, false)
+    setCursorPos(100, 18)
+    stdout.write("ENA")
+  else:
+    setForegroundColor(fgRed, false)
+    setCursorPos(100, 18)
+    stdout.write("DIS")
+  if(testBit(gameboy.intFlag, 2)):
+    setForegroundColor(fgRed, true)
+    setCursorPos(104, 18)
+    stdout.write("TRG")
+  else:
+    setForegroundColor(fgWhite, false)
+    setCursorPos(104, 18)
+    stdout.write("---")
+  #
+  setForegroundColor(fgWhite, true)
+  setCursorPos(90, 19)
+  stdout.write ("│LCDStat: ")
+  if (testBit(gameboy.intEnable, 1)):
+    setForegroundColor(fgGreen, false)
+    setCursorPos(100, 19)
+    stdout.write("ENA")
+  else:
+    setForegroundColor(fgRed, false)
+    setCursorPos(100, 19)
+    stdout.write("DIS")
+  if(testBit(gameboy.intFlag, 1)):
+    setForegroundColor(fgRed, true)
+    setCursorPos(104, 19)
+    stdout.write("TRG")
+  else:
+    setForegroundColor(fgWhite, false)
+    setCursorPos(104, 19)
+    stdout.write("---")
+  #
+  setForegroundColor(fgWhite, true)
+  setCursorPos(90, 20)
+  stdout.write ("│  VSync:")
+  if (testBit(gameboy.intEnable, 0)):
+    setForegroundColor(fgGreen, false)
+    setCursorPos(100, 20)
+    stdout.write("ENA")
+  else:
+    setForegroundColor(fgRed, false)
+    setCursorPos(100, 20)
+    stdout.write("DIS")
+  if(testBit(gameboy.intFlag, 0)):
+    setForegroundColor(fgRed, true)
+    setCursorPos(104, 20)
+    stdout.write("TRG")
+  else:
+    setForegroundColor(fgWhite, false)
+    setCursorPos(104, 20)
+    stdout.write("---")
+  # Global Interrupts
+  setForegroundColor(fgWhite, true)
+  setCursorPos(90, 21)
+  stdout.write ("│ GLOBAL:")
+  if gameboy.cpu.ime:
+    setForegroundColor(fgGreen, false)
+    setCursorPos(100, 21)
+    stdout.write("ENA")
+  else:
+    setForegroundColor(fgRed, false)
+    setCursorPos(100, 21)
+    stdout.write("DIS")
+  setForegroundColor(fgWhite, true)
+  setCursorPos(90,22)
+  stdout.write("╰────────────────┤")
+
+proc drawTimerDetails(timer: Timer) =
+  setCursorPos(73,1)
+  stdout.write("╰────────────────┤")
+
 proc draw(gameboy: Gameboy; debugger: Debugger) =
   drawCliTables()
   drawCpu(gameboy.cpu)
   drawTitle(gameboy.cartridge)
+  drawInterrupts(gameboy)
   # OPCode Decoder
   var i = 0
   for x in countdown(debugger.history.len, debugger.history.len - 30):

@@ -1,8 +1,12 @@
 import types
 import cpu
 import memory
+import timer
+
 proc powerOn(gameboy:var Gameboy) =
+    gameboy.intEnable = 0x00'u8 # TODO IS THIS RIGHT
     gameboy.cpu.mem = newCPUMemory(gameboy)
+    gameboy.timer.gb = newTimerGb(gameboy)
     # CPU Initialization
     gameboy.cpu.a = 0x01'u8
     gameboy.cpu.f = 0xb0'u8    # Flags only
@@ -11,10 +15,13 @@ proc powerOn(gameboy:var Gameboy) =
     gameboy.cpu.hl = 0x014d'u16
     gameboy.cpu.sp = 0xfffe'u16
     gameboy.cpu.pc = 0x0100'u16
+    gameboy.cpu.ime = true
 
 proc newGameboy*(): Gameboy =
     new result
     result.powerOn
 
 proc step*(gameboy: var Gameboy): string = 
+    gameboy.osc += 1
+    gameboy.timer.tick()
     return gameboy.cpu.step()
