@@ -1,4 +1,3 @@
-import os
 import parseutils
 import strutils
 import terminal
@@ -184,7 +183,7 @@ proc drawInterrupts(gameboy: Gameboy) =
   #
   setForegroundColor(fgWhite, true)
   setCursorPos(90, 20)
-  stdout.write ("│ VBlank:")
+  stdout.write ("│  VSync:")
   if (testBit(gameboy.intEnable, 0)):
     setForegroundColor(fgGreen, false)
     setCursorPos(100, 20)
@@ -205,7 +204,7 @@ proc drawInterrupts(gameboy: Gameboy) =
   setForegroundColor(fgWhite, true)
   setCursorPos(90, 21)
   stdout.write ("│ GLOBAL:")
-  if gameboy.cpu.intStatus:
+  if gameboy.cpu.ime:
     setForegroundColor(fgGreen, false)
     setCursorPos(100, 21)
     stdout.write("ENA")

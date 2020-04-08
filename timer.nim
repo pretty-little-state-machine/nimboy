@@ -29,8 +29,3 @@ proc tick*(timer: var Timer) =
       timer.timaCounter += 1
     if 0 == timer.timaCounter:
       timer.gb.gameboy.triggerTimerInterrupt()
-
-
-
-
-
