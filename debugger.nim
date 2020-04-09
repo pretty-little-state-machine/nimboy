@@ -2,6 +2,8 @@ import parseutils
 import strutils
 import terminal
 import bitops
+import colors
+# Nimboy Imports
 import types
 import cartridge
 import gameboy
@@ -9,7 +11,8 @@ import nimboyutils
 import cpu
 
 type
-  Debugger* = object
+  Debugger* = ref DebuggerObj
+  DebuggerObj* = object
     history: seq[string]
 
 proc drawCliTables() = 
@@ -217,7 +220,7 @@ proc drawInterrupts(gameboy: Gameboy) =
   stdout.write("╰────────────────┤")
 
 proc drawTimerDetails(timer: Timer) =
-  setCursorPos(73,1)
+  setCursorPos(73,24)
   stdout.write("╰────────────────┤")
 
 proc draw(gameboy: Gameboy; debugger: Debugger) =
@@ -276,10 +279,13 @@ proc parseCommand(gameboy: var Gameboy; input: string; debugger: var Debugger) =
   else:
     discard
 
-proc launchDebugger*(gameboy: var Gameboy) = 
-  var debugger: Debugger
+proc debug*(gameboy: var Gameboy; debugger: var Debugger) = 
   draw(gameboy, debugger)
-  while true:
-    var input: string = readLine(stdin)
-    parseCommand(gameboy, input, debugger)
-    draw(gameboy, debugger)
+  var input: string = readLine(stdin)
+  parseCommand(gameboy, input, debugger)
+  draw(gameboy, debugger)
+
+
+proc newDebugger*(): Debugger = 
+  new result
+  result
