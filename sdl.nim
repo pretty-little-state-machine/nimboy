@@ -1,87 +1,94 @@
 import sdl2
 import system
-import os
 import bitops
+import strutils
 import types
 
 type
-  Sprite = object
+  TwoBB = array[16, uint8] # 2bb Encoded Sprite Data
+  Sprite = object  # Decoded Sprite Data - 8x8 Pixels
     data: array[64, uint8]
+  
+  Palette = array[4, VpuColor] # Palette - 4 Colours (0 is transparent for sprites)
+  
+  VpuColor = object
+    r: uint8
+    g: uint8
+    b: uint8
 
-proc decodeMgbColor(colorNumber: uint8): array[3, uint8] =
+proc decodeMgbColor(colorNumber: uint8): VpuColor =
+  # A nice set of psuedo-green colours for Monochrome Gameboy
   case colorNumber:
-  of 0x03: return [232'u8, 242'u8, 223'u8]
-  of 0x02: return [174'u8, 194'u8, 157'u8]
-  of 0x01: return [98'u8, 110'u8, 89'u8]
-  of 0x00: return [30'u8, 33'u8, 27'u8]
-  else: return [30'u8, 33'u8, 27'u8]
+  of 0x03: result.r = 232'u8; result.g = 242'u8; result.b = 223'u8
+  of 0x02: result.r = 174'u8; result.g = 194'u8; result.b = 157'u8
+  of 0x01: result.r =  98'u8; result.g = 110'u8; result.b = 89'u8
+  of 0x00: result.r =  30'u8; result.g =  33'u8; result.b = 27'u8
+  else: result.r = 30'u8; result.g = 33'u8; result.b = 27'u8
 
 proc drawSwatch(renderer: RendererPtr; x: cint; y: cint; 
-                width: cint; height: cint; color: array[3, uint8]): void =
+                width: cint; height: cint; color: VpuColor): void =
+  # Draws a coloured rectangle swatch for palette inspection
   for i in countup(x, x + width):
     for j in countup(y, y + height):
-      renderer.setDrawColor(r = color[0], g = color[1], b = color[2])
+      renderer.setDrawColor(r = color.r, g = color.g, b = color.b)
       renderer.drawPoint(cint(i), cint(j))
 
-proc decode2bbTile*(data: array[16, uint8]): array[64, uint8] =
+proc decode2bbTile(data: TwoBB): Sprite =
+  # Decodes a sprite encoded wiht the 2BB format. 
+  # See https://www.huderlem.com/demos/gameboy2bpp.html for how this works.
   var offset = 0'u8
-  var sprite = new Sprite
   for x in countup(0, 15, 2):
     let lByte = data[x]
     let hByte = data[x+1]
     for i in countdown(7, 0):
-      if lByte.testBit(i) and hByte.testBit(i): sprite.data[offset] = 0x03'u8
-      elif lByte.testBit(i) and not hByte.testBit(i): sprite.data[offset] = 0x02'u8
-      elif not lByte.testBit(i) and hByte.testBit(i): sprite.data[offset] = 0x01'u8
-      else: sprite.data[offset] = 0x00'u8
+      if lByte.testBit(i): result.data[offset] += 2
+      if hByte.testBit(i): result.data[offset] += 1
       offset += 1
-      echo $offset
-  return sprite.data
+
+proc byteToMgbPalette(byte: uint8): Palette =
+  # Reads the palette register into the four colors
+  # This is essentially 2bb encoding.
+  var offset = 0'u8
+  for idx in countup(0, 7, 2):
+    var tmp = 0'u8
+    if byte.testBit(idx + 1): tmp += 2
+    if byte.testBit(idx): tmp += 1
+    result[offset] = decodeMgbColor(tmp)
+    offset += 1
+
+proc renderSprite(renderer: RendererPtr; sprite: Sprite; palette: Palette; x: cint; y: cint) =
+  for i in countup(0, 7):
+    for j in countup(0, 7):
+      # TODO: Transparency
+      var color = palette[sprite.data[(8 * i) + j]]
+      renderer.setDrawColor(r = color.r, g = color.g, b = color.b)
+      renderer.drawPoint(x + cint(i), y + cint(j))
 
 proc renderMgbTileMap(renderer: RendererPtr; vpu: VPU) = 
-  renderer.drawSwatch(0, 0, 64, 64, decodeMgbColor(3))
-  renderer.drawSwatch(64, 0, 64, 64, decodeMgbColor(2))
-  renderer.drawSwatch(128, 0, 64, 64, decodeMgbColor(1))
-  renderer.drawSwatch(192, 0, 64, 64, decodeMgbColor(0))
+  # Renders the Monochrome Gameboy Tile Map
 
-proc renderCgbTileMap(renderer: RendererPtr; vpu: VPU) = 
-  renderer.drawSwatch(0, 0, 64, 8, [232'u8, 242'u8, 223'u8])
-  renderer.drawSwatch(64, 0, 64, 8, [174'u8, 194'u8, 157'u8])
-  renderer.drawSwatch(128, 0, 64, 8, [98'u8, 110'u8, 89'u8])
-  renderer.drawSwatch(192, 0, 64, 8, [30'u8, 33'u8, 27'u8])
-  renderer.drawSwatch(0, 8, 64, 8, [223'u8, 237'u8, 242'u8])
-  renderer.drawSwatch(64, 8, 64, 8, [136'u8, 176'u8, 191'u8])
-  renderer.drawSwatch(128, 8, 64, 8, [39'u8, 91'u8, 110'u8])
-  renderer.drawSwatch(192, 8, 64, 8, [3'u8, 42'u8, 56'u8])
-  renderer.drawSwatch(0, 16, 64, 8, [232'u8, 242'u8, 223'u8])
-  renderer.drawSwatch(64, 16, 64, 8, [174'u8, 194'u8, 157'u8])
-  renderer.drawSwatch(128, 16, 64, 8, [98'u8, 110'u8, 89'u8])
-  renderer.drawSwatch(192, 16, 64, 8, [30'u8, 33'u8, 27'u8])
-  renderer.drawSwatch(0, 24, 64, 8, [223'u8, 237'u8, 242'u8])
-  renderer.drawSwatch(64, 24, 64, 8, [136'u8, 176'u8, 191'u8])
-  renderer.drawSwatch(128, 24, 64, 8, [39'u8, 91'u8, 110'u8])
-  renderer.drawSwatch(192, 24, 64, 8, [3'u8, 42'u8, 56'u8])
-  renderer.drawSwatch(0, 32, 64, 8, [232'u8, 242'u8, 223'u8])
-  renderer.drawSwatch(64, 32, 64, 8, [174'u8, 194'u8, 157'u8])
-  renderer.drawSwatch(128, 32, 64, 8, [98'u8, 110'u8, 89'u8])
-  renderer.drawSwatch(192, 32, 64, 8, [30'u8, 33'u8, 27'u8])
-  renderer.drawSwatch(0, 40, 64, 8, [223'u8, 237'u8, 242'u8])
-  renderer.drawSwatch(64, 40, 64, 8, [136'u8, 176'u8, 191'u8])
-  renderer.drawSwatch(128, 40, 64, 8, [39'u8, 91'u8, 110'u8])
-  renderer.drawSwatch(192, 40, 64, 8, [3'u8, 42'u8, 56'u8])
-  renderer.drawSwatch(0, 48, 64, 8, [232'u8, 242'u8, 223'u8])
-  renderer.drawSwatch(64, 48, 64, 8, [174'u8, 194'u8, 157'u8])
-  renderer.drawSwatch(128, 48, 64, 8, [98'u8, 110'u8, 89'u8])
-  renderer.drawSwatch(192, 48, 64, 8, [30'u8, 33'u8, 27'u8])
-  renderer.drawSwatch(0, 56, 64, 8, [223'u8, 237'u8, 242'u8])
-  renderer.drawSwatch(64, 56, 64, 8, [136'u8, 176'u8, 191'u8])
-  renderer.drawSwatch(128, 56, 64, 8, [39'u8, 91'u8, 110'u8])
-  renderer.drawSwatch(192, 56, 64, 8, [3'u8, 42'u8, 56'u8])
+  # Read the Palette Data
+  let palette = byteToMgbPalette(vpu.bgp)
+  renderer.drawSwatch(0, 0, 64, 64, palette[0])
+  renderer.drawSwatch(64, 0, 64, 64, palette[1])
+  renderer.drawSwatch(128, 0, 64, 64, palette[2])
+  renderer.drawSwatch(192, 0, 64, 64, palette[3])
+  # Tilemap data - 384 Tiles
+  for s in countup(0'u16, 0x1800, 0xF):
+    var twoBB: TwoBB
+    for b in countup(0'u16, 0xF):
+      twoBB[b] = vpu.vRAMTileDataBank0[s + b] # Load the 2bb encoding of a sprite (16 bytes)
+      var sprite = twoBB.decode2bbTile()
+      renderer.renderSprite(sprite,  palette, cint(s), cint(64 + (16 * (s mod 192))))
+      return
+
+#proc renderCgbTileMap(renderer: RendererPtr; vpu: VPU) = 
+  # TODO
 
 proc renderTileMap*(renderer: RendererPtr; vpu: VPU) =
   case vpu.gb.gameboy.gameboyMode:
   of mgb: renderer.renderMgbTileMap(vpu)
-  of cgb: renderer.renderCgbTileMap(vpu)
+  #of cgb: renderer.renderCgbTileMap(vpu)
   else: discard
 
 proc renderVpu*(renderer: RendererPtr; vpu: VPU) =

@@ -60,8 +60,8 @@ type
   VPU* = object
     gb*: VPUGb
     mode: uint8   # Modes 0 - 3 based on the current scanline / cycle period
-    vRamTileDataBank0*: array[0x17FF, uint8] # Stored in 0x8000 - 0x97FF - 384 Tiles
-    vRamTileDataBank1*: array[0x17FF, uint8] # Stored in 0x8000 - 0x97FF - 384 More Tiles - Color Gameboy Only
+    vRAMTileDataBank0*: array[0x180F, uint8] # Stored in 0x8000 - 0x97FF - 384 Tiles - This doesn't divide evenly.?????
+    vRAMTileDataBank1*: array[0x180F, uint8] # Stored in 0x8000 - 0x97FF - 384 More Tiles - Color Gameboy Only
     vRAMBgMap1*: array[0x3FF, uint8] # VG Background TileMaps 1 - 32x32 Tile Background Map
     vRAMBgMap2*: array[0x3FF, uint8] # VG Background TileMaps 2 - 32x32 Tile Background Map
     oam*: array[0x9F, uint8] # Sprite Attribute Table - Object Attribute Memory
@@ -93,6 +93,3 @@ type
 
   VPUGb* = ref object
     gameboy*: Gameboy
-
-
-  
