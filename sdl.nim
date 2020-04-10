@@ -56,13 +56,14 @@ proc byteToMgbPalette(byte: uint8): Palette =
     result[offset] = decodeMgbColor(tmp)
     offset += 1
 
-proc renderSprite(renderer: RendererPtr; sprite: Sprite; palette: Palette; x: cint; y: cint) =
+proc renderSprite(renderer: RendererPtr; sprite: Sprite; palette: Palette; x: cint; y: cint; scale: int = 1) =
+  # Draws a sprite with the top-left corner at x,y with a given palette and scale.
+  # Note that the calling proc must also consider what scale is being used.
   for i in countup(0, 7):
     for j in countup(0, 7):
-      # TODO: Transparency
       var color = palette[sprite.data[(8 * i) + j]]
       renderer.setDrawColor(r = color.r, g = color.g, b = color.b)
-      renderer.drawPoint(x + cint(i), y + cint(j))
+      renderer.drawPoint(cint(x + i), cint(y + j))
 
 proc renderMgbTileMap(renderer: RendererPtr; vpu: VPU) = 
   # Renders the Monochrome Gameboy Tile Map
@@ -74,13 +75,24 @@ proc renderMgbTileMap(renderer: RendererPtr; vpu: VPU) =
   renderer.drawSwatch(128, 0, 64, 64, palette[2])
   renderer.drawSwatch(192, 0, 64, 64, palette[3])
   # Tilemap data - 384 Tiles
-  for s in countup(0'u16, 0x1800, 0xF):
-    var twoBB: TwoBB
-    for b in countup(0'u16, 0xF):
-      twoBB[b] = vpu.vRAMTileDataBank0[s + b] # Load the 2bb encoding of a sprite (16 bytes)
-      var sprite = twoBB.decode2bbTile()
-      renderer.renderSprite(sprite,  palette, cint(s), cint(64 + (16 * (s mod 192))))
-      return
+ #for s in countup(0'u16, 0x1800, 0xF):
+ #   var twoBB: TwoBB
+ #   var tmp = [0xFF'u8, 0x00, 0x7E, 0xFF, 0x85, 0x81, 0x89, 0x83, 0x93, 0x85, 0xA5, 0x8B, 0xC9, 0x97, 0x7E, 0xFF]
+ #   for b in countup(0'u16, 0xF):
+ #     #twoBB[b] = vpu.vRAMTileDataBank0[s + b] # Load the 2bb encoding of a sprite (16 bytes)
+ #     twoBB[b] = tmp[s + b] # Load the 2bb encoding of a sprite (16 bytes)
+ #     var sprite = twoBB.decode2bbTile()
+ #     renderer.renderSprite(sprite,  palette, cint(s), cint(64), 4)
+ # return
+ 
+  var twoBB: TwoBB
+  var tmp = [0xFF'u8, 0x00, 0x7E, 0xFF, 0x85, 0x81, 0x89, 0x83, 0x93, 0x85, 0xA5, 0x8B, 0xC9, 0x97, 0x7E, 0xFF]
+  for b in countup(0'u16, 0xF):
+    #twoBB[b] = vpu.vRAMTileDataBank0[s + b] # Load the 2bb encoding of a sprite (16 bytes)
+    twoBB[b] = tmp[b] # Load the 2bb encoding of a sprite (16 bytes)
+    var sprite = twoBB.decode2bbTile()
+    renderer.renderSprite(sprite,  palette, cint(0), cint(64), 4)
+
 
 #proc renderCgbTileMap(renderer: RendererPtr; vpu: VPU) = 
   # TODO
