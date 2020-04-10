@@ -44,7 +44,7 @@ proc main =
   while true:
     #sleep(100)
     gbRenderer.clear()
-    gbRenderer.renderVpu(gb.vpu)
+    gbRenderer.step(gb.vpu)
     gbRenderer.present()
 
     tileMapRenderer.clear()
