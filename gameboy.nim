@@ -1,3 +1,4 @@
+import random
 import types
 import cpu
 import memory
@@ -28,12 +29,18 @@ proc powerOn(gameboy:var Gameboy) =
     gameboy.vpu.scx = 0x00'u8
     gameboy.vpu.scy = 0x00'u8
     gameboy.vpu.lyc = 0x00'u8
-    #gameboy.vpu.bgp = 0xFC'u8  The real one
-    gameboy.vpu.bgp = 0x1B'u8
+    #gameboy.vpu.bgp = 0xFC'u8  # The real one - blank and white by default
+    gameboy.vpu.bgp = 0x1B'u8 # Fake testing one - 4 colours
     gameboy.vpu.obp1 = 0xFF'u8
     gameboy.vpu.obp2 = 0xFF'u8
     gameboy.vpu.wx = 0x00'u8
     gameboy.vpu.wy = 0x00'u8
+    # A real gameboy has noise in the ram on boot
+    randomize()
+    for x in gameboy.vpu.vRAMTileDataBank0.mitems: x = uint8(rand(1))
+    for x in gameboy.vpu.vRAMTileDataBank1.mitems: x = uint8(rand(1))
+
+
     
 proc newGameboy*(): Gameboy =
     new result

@@ -35,7 +35,7 @@ proc getRenderer(title: string; width: cint; height: cint): RendererPtr =
   return renderer
 
 proc main =
-  let gbRenderer = getRenderer("Nimboy", 160,144)
+  #let gbRenderer = getRenderer("Nimboy", 160,144)
   let tileMapRenderer = getRenderer("Tile Data", 256, 256) # 192 for all sprites
 
   # Game loop, draws each frame
@@ -43,12 +43,13 @@ proc main =
   var debugger = newDebugger()
   while true:
     #sleep(100)
-    gbRenderer.clear()
-    gbRenderer.step(gb.vpu)
-    gbRenderer.present()
+    #gbRenderer.clear()
+    #gbRenderer.step(gb.vpu)
+    #gbRenderer.present()
 
     tileMapRenderer.clear()
-    tileMapRenderer.renderTileMap(gb.vpu)
+    #tileMapRenderer.renderTileMap(gb.vpu)
+    tileMapRenderer.drawTestTile(gb.vpu)
     tileMapRenderer.present()
 
     debug(gb, debugger)
