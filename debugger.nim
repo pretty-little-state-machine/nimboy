@@ -258,13 +258,13 @@ proc parseCommand(gameboy: var Gameboy; input: string; debugger: var Debugger) =
     if args.len > 1:
       for x in countup(1, parseint(args[1])):
         var r = gameboy.step()
-        if "BREAK" == r:
+        if "BREAK" == r.debugStr:
           debugger.history.add("!--BREAKPOINT--!")
           break
         else:
-          debugger.history.add(r)
+          debugger.history.add(r.debugStr)
     else:
-      debugger.history.add(gameboy.step())
+      debugger.history.add(gameboy.step().debugStr)
   elif "tf" in args[0] and 2 == args.len:
     if "z" in args[1] or "Z" in args[1]:
       gameboy.cpu.f.flipBit(7)

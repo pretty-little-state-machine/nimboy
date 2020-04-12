@@ -5,6 +5,12 @@ import types
 import memory
 import nimboyutils
 
+type
+  TickResult* = object
+    tClock*: int
+    mClock*: int
+    debugStr*: string
+
 proc readWord(cpu: CPU; address: uint16): uint16 =
   var word: uint16
   word = cpu.mem.gameboy.readByte(address + 1)
@@ -63,17 +69,15 @@ proc cFlag(cpu: var CPU): bool =
 
 template toSigned(x: uint8): int8 = cast[int8](x)
 
-proc execute (cpu: var CPU; opcode: uint8): string =
-  var decode: string
+proc execute (cpu: var CPU; opcode: uint8): TickResult =
+  # Executes a single CPU Opcode
   case opcode
   of 0x00:
-    cpu.tClock += 4
-    cpu.mClock += 1
     cpu.pc += 1
-    decode = "NOP"
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "NOP"
   of 0x05:
-    cpu.tClock += 4
-    cpu.mClock += 1
     cpu.pc += 1
     cpu.setFlagN()
     # Rollover
@@ -86,17 +90,17 @@ proc execute (cpu: var CPU; opcode: uint8): string =
        cpu.setFlagZ()
     else:
         cpu.clearFlagZ()
-    decode = "DEC B"
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "DEC B"
   of 0x06:
     let byte =  cpu.mem.gameboy.readByte(cpu.pc + 1)
     cpu.bc = setMsb(cpu.bc, byte)
-    cpu.tClock += 8
-    cpu.mClock += 2
     cpu.pc += 2
-    decode = "LD B " & $toHex(byte)
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "LD B " & $toHex(byte)
   of 0x0D:
-    cpu.tClock += 4
-    cpu.mClock += 1
     cpu.pc += 1
     cpu.setFlagN()
     # Rollover
@@ -109,47 +113,49 @@ proc execute (cpu: var CPU; opcode: uint8): string =
        cpu.setFlagZ()
     else:
         cpu.clearFlagZ()
-    decode = "DEC C"
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "DEC C"
   of 0x0E:
     let byte = cpu.mem.gameboy.readByte(cpu.pc + 1)
     cpu.bc = setLsb(cpu.bc, byte)
-    cpu.tClock += 8
-    cpu.mClock += 2
     cpu.pc += 2
-    decode = "LD C " & $toHex(byte)
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "LD C " & $toHex(byte)
   of 0x20:
     let signed = toSigned(cpu.mem.gameboy.readbyte(cpu.pc + 1))
     cpu.pc += 2 # The program counter always increments first!
     if cpu.zFlag:
-      cpu.tClock += 8
-      cpu.mClock += 2
-      decode = "JR NZ " & $toHex(cpu.pc)
+      result.tClock = 8
+      result.mClock = 2
+      result.debugStr = "JR NZ " & $toHex(cpu.pc)
     else:
-      cpu.tClock += 12
-      cpu.mClock += 3
       cpu.pc += uint16(signed)
-      decode = "JR NZ " & $toHex(cpu.pc)
+      result.tClock = 12
+      result.mClock = 3
+      result.debugStr = "JR NZ " & $toHex(cpu.pc)
   of 0x21:
     let word = cpu.readWord(cpu.pc + 1) # Decode only
     cpu.hl = setLsb(cpu.hl, cpu.mem.gameboy.readByte(cpu.pc + 1))
     cpu.hl = setMsb(cpu.hl, cpu.mem.gameboy.readByte(cpu.pc + 2))
-    cpu.tClock += 12
-    cpu.mClock += 3
     cpu.pc += 3
-    decode = "LD HL " & $toHex(word)
+    result.tClock = 12
+    result.mClock = 3
+    result.debugStr = "LD HL " & $toHex(word)
   of 0x32:
     cpu.mem.gameboy.writeByte(cpu.hl, cpu.a)
     cpu.hl -= 1
-    cpu.tClock += 8
-    cpu.mClock += 2
     cpu.pc += 1
-    decode = "LDD " & $toHex(cpu.hl) & " " & $toHex(cpu.a)
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "LDD " & $toHex(cpu.hl) & " " & $toHex(cpu.a)
   of 0x3E:
     cpu.a = cpu.mem.gameboy.readbyte(cpu.pc + 1)
-    cpu.tClock += 8
-    cpu.mClock += 2
     cpu.pc += 2
-    decode = "LD A " & $toHex(cpu.a)
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "LD A " & $toHex(cpu.a)
   of 0xAF:
     cpu.clearFlagC()
     cpu.clearFlagN()
@@ -159,48 +165,49 @@ proc execute (cpu: var CPU; opcode: uint8): string =
       cpu.setFlagZ()
     else:
       cpu.clearFlagZ()
-    cpu.tClock += 4
-    cpu.mClock += 1
     cpu.pc += 1
-    decode = "XOR A A"
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "XOR A A"
   of 0xC3:
     let word = cpu.readWord(cpu.pc + 1)
-    cpu.tClock += 16
-    cpu.mClock += 4
     cpu.pc = word
-    decode = "JP " & $toHex(word)
+    result.tClock = 16
+    result.mClock = 4
+    result.debugStr = "JP " & $toHex(word)
   of 0xE0:
     var word = 0xFF00'u16
     word = bitOr(word, uint16(cpu.mem.gameboy.readbyte(cpu.pc + 1)))
     cpu.mem.gameboy.writeByte(word, cpu.a)
-    cpu.tClock += 12
-    cpu.mClock += 4
     cpu.pc += 2
-    decode = "LD " & $toHex(word) & " A (" & $toHex(cpu.a) & ")"
+    result.tClock = 12
+    result.mClock = 3
+    result.debugStr = "LD " & $toHex(word) & " A (" & $toHex(cpu.a) & ")"
   of 0xF0:
     var word = 0xFF00'u16
     word = bitOr(word, uint16(cpu.mem.gameboy.readbyte(cpu.pc + 1)))
     let byte = cpu.mem.gameboy.readByte(word)
     cpu.a = byte
-    cpu.tClock += 12
-    cpu.mClock += 4
     cpu.pc += 2
-    decode = "LD A " & $toHex(word) & " (" & $toHex(cpu.a) & ")"
+    result.tClock = 12
+    result.mClock = 3
+    result.debugStr = "LD A " & $toHex(word) & " (" & $toHex(cpu.a) & ")"
   of 0xF3:
-    cpu.tClock += 4
-    cpu.mClock += 1
     cpu.pc += 1
     cpu.ime = false # Interrupts are immediately disabled!
-    decode = "DI"
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "DI"
   of 0xFE:
-    cpu.tClock += 4
-    cpu.mClock += 1
     cpu.pc += 1
     cpu.eiPending = true # Interrupts are NOT immediately enabled!
-    decode = "EI"
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "EI"
   else:
-    decode = "UNKNOWN OPCODE: " & $toHex(opcode)
-  return decode
+    result.tClock = 0
+    result.mClock = 0
+    result.debugStr = "UNKNOWN OPCODE: " & $toHex(opcode)
 
 proc push(cpu: var CPU; address: uint16; value: uint8): void =
   # Push onto the stack. This does NOT calculate any cycles for this.
@@ -214,55 +221,70 @@ proc call(cpu: var CPU; address: uint16): void =
   cpu.sp -= 1
   cpu.mem.gameboy.writeByte(address, readMsb(cpu.pc))
 
-proc callInterrupt(cpu: var CPU; address: uint16): string =
-  # Call for interrupt handling. Automatically takes care of halt penalties
-  if cpu.halted: # Clear halted status in all cases
-    cpu.tClock += 4
-    cpu.mClock += 1
-    cpu.halted = false
-  if cpu.ime:
-    #cpu.mem.gameboy.clearAllInterrupts() # TODO: THIS IS WRONG. ONLY CLEAR THE TRIPPPED
-    cpu.call(cpu.sp)
-    cpu.pc = address
-    cpu.tClock += 20
-    cpu.mClock += 5
-    return "INTERRUPT: VSync"
-  return ""
-
-proc handleInterrupts(cpu: var CPU): string =
-  # Process Interrupts and clears the HALT status.
+proc callInterrupt(cpu: var CPU; address: uint16; flagBit: uint8;): TickResult =
+  # Processes the given interrupt. Note that the halt flag is cleared if it is set.
   #
   # WARNING: 
   # The call is only executed if the global IME (Interrupt Enable) is set
   # The Halt flag is _always_ cleared, regardless of the IME. If the halt
   # flag has to be cleared there is a 4 cycle penalty for the operation.
+  if cpu.halted: # Clear halted status in all cases
+    result.tClock = 4
+    result.mClock = 1
+    cpu.halted = false
+  if cpu.ime:
+    # Clear the interrupt that fired only. Interrupts are DISABLED here.
+    cpu.ime = false
+    cpu.call(cpu.sp)
+    cpu.pc = address
+    result.tClock += 20
+    result.mClock += 5
+    case flagBit:
+      of 0x00:
+        cpu.mem.gameboy.clearVSyncInterrupt()
+        result.debugStr = "INTERRUPT: VSync"
+      of 0x01:
+        cpu.mem.gameboy.clearLCDStatInterrupt()
+        result.debugStr =  "INTERRUPT: LCDStat"
+      of 0x02:
+        cpu.mem.gameboy.clearTimerInterrupt()
+        result.debugStr =  "INTERRUPT: Timer"
+      of 0x03:
+        cpu.mem.gameboy.clearSerialInterrupt()
+        result.debugStr =  "INTERRUPT: Serial"
+      of 0x04:
+        cpu.mem.gameboy.clearJoypadInterrupt()
+        result.debugStr =  "INTERRUPT: Joypad"
+      else: discard
 
-  var penalty = 0
-  if cpu.halted:
-    penalty = 4
-
+proc handleInterrupts(cpu: var CPU): TickResult =
+  # Process Interrupts and clears the HALT status.
+  # 
+  # This dispatches per interrupt. Note that interrupts CAN be chained once the 
+  # previous interrupt has set IE (or typically the RETI opcode - Return and Enable Interrupts)
   if cpu.mem.gameboy.testVsyncInterrupt() and cpu.mem.gameboy.testVsyncIntEnabled():
-    return cpu.callInterrupt(0x0040)
+    return cpu.callInterrupt(0x0040, 0)
   elif cpu.mem.gameboy.testLCDStatInterrupt() and cpu.mem.gameboy.testLCDStatIntEnabled():
-    return cpu.callInterrupt(0x0048)
+    return cpu.callInterrupt(0x0048, 1)
   elif cpu.mem.gameboy.testTimerInterrupt() and cpu.mem.gameboy.testTimerIntEnabled():
-    return cpu.callInterrupt(0x0050)
+    return cpu.callInterrupt(0x0050, 2)
   elif cpu.mem.gameboy.testSerialInterrupt() and cpu.mem.gameboy.testSerialIntEnabled():
-    return cpu.callInterrupt(0x0058)
+    return cpu.callInterrupt(0x0058, 3)
   elif cpu.mem.gameboy.testJoypadInterrupt() and cpu.mem.gameboy.testJoypadIntEnabled():
-    return cpu.callInterrupt(0x0060)
+    return cpu.callInterrupt(0x0060, 4)
   else:
     discard
-  return ""
 
-proc step*(cpu: var CPU): string =   
-  # Executes a single step for the CPU
+proc step*(cpu: var CPU): TickResult =   
+  # Executes a single step for the CPU.
+  # Breakpiont Tirgger - Circuit breaker
   if cpu.breakpoint == cpu.pc:
-    return "BREAK"
-
-  # TODO: I don't like the way I'm handling the return statement here.
+    result.debugStr = "BREAK!"
+    return
+  
+  # A response of 0 cycles indicates nothing happened, no interrupts to process - Circuit breaker
   let intResult = cpu.handleInterrupts()
-  if "INTERRUPT" in intResult:
+  if 0 < intResult.tClock:
     return intResult
 
   # If there's pending interrupt enable, flip it off and queue up the toggle.
@@ -271,13 +293,15 @@ proc step*(cpu: var CPU): string =
     cpu.eiPending = false
     enableInterrupts = true
 
-  # Execute the next instruction
-  var r = $toHex(cpu.pc) & " : " & cpu.execute(cpu.mem.gameboy.readByte(cpu.pc))
+  # Execute the next instruction and prepend the PC (before execution)
+  let tmpPc = cpu.pc
+  result = cpu.execute(cpu.mem.gameboy.readByte(cpu.pc))
+  result.debugStr = $toHex(tmpPc) & " : " & result.debugStr
   
   # Process the enableInterrupts toggle if it was queued
   if enableInterrupts:
-    cpu.ime = true;
-  return r
+    cpu.ime = true
 
 proc addBreakpoint*(cpu: var CPU; breakpoint: uint16) =
+  # Addres a breakpoint to the CPU. This will NOT be cleared when hit.
   cpu.breakpoint = breakpoint

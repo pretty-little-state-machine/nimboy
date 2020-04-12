@@ -19,7 +19,7 @@ proc powerOn(gameboy:var Gameboy) =
     gameboy.cpu.hl = 0x014d'u16
     gameboy.cpu.sp = 0xfffe'u16
     gameboy.cpu.pc = 0x0100'u16 # Cheating to avoid bootloader
-    gameboy.cpu.ime = true
+    gameboy.cpu.ime = false     # CPU *always* must boot with interrupts disabled
     # Timer Initilzation
     gameboy.timer.timaCounter = 0x00'u8
     gameboy.timer.timaModulo = 0x00'u8
@@ -39,14 +39,13 @@ proc powerOn(gameboy:var Gameboy) =
     randomize()
     for x in gameboy.vpu.vRAMTileDataBank0.mitems: x = uint8(rand(1))
     for x in gameboy.vpu.vRAMTileDataBank1.mitems: x = uint8(rand(1))
-
-
     
 proc newGameboy*(): Gameboy =
     new result
     result.powerOn
 
-proc step*(gameboy: var Gameboy): string = 
-    gameboy.osc += 1
-    gameboy.timer.tick()
-    return gameboy.cpu.step()
+proc step*(gameboy: var Gameboy): TickResult = 
+    result = gameboy.cpu.step()
+    for t in countup(1, result.tClock):
+      gameboy.timer.tick()
+ 
