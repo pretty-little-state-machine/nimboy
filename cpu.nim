@@ -221,7 +221,7 @@ proc callInterrupt(cpu: var CPU; address: uint16): string =
     cpu.mClock += 1
     cpu.halted = false
   if cpu.ime:
-    cpu.mem.gameboy.clearAllInterrupts()
+    #cpu.mem.gameboy.clearAllInterrupts() # TODO: THIS IS WRONG. ONLY CLEAR THE TRIPPPED
     cpu.call(cpu.sp)
     cpu.pc = address
     cpu.tClock += 20
