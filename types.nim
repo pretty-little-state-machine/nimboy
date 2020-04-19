@@ -63,8 +63,8 @@ type
     mode: uint8   # Modes 0 - 3 based on the current scanline / cycle period
     vRAMTileDataBank0*: array[0x180F, uint8] # Stored in 0x8000 - 0x97FF - 384 Tiles - This doesn't divide evenly.?????
     vRAMTileDataBank1*: array[0x180F, uint8] # Stored in 0x8000 - 0x97FF - 384 More Tiles - Color Gameboy Only
-    vRAMBgMap1*: array[0x3FF, uint8] # VG Background TileMaps 1 - 32x32 Tile Background Map
-    vRAMBgMap2*: array[0x3FF, uint8] # VG Background TileMaps 2 - 32x32 Tile Background Map
+    vRAMBgMap1*: array[0x3FF, uint8] # Stored in 0x9800 - 0x9BFF VG Background TileMaps 1 - 32x32 Tile Background Map
+    vRAMBgMap2*: array[0x3FF, uint8] # Stored in 0x9C00 - 0x9FFF VG Background TileMaps 2 - 32x32 Tile Background Map
     oam*: array[0x9F, uint8] # Sprite Attribute Table - Object Attribute Memory
     # LCD Stuff
     lcdc*: uint8  # 0xFF40 - LCD Control Reigster
@@ -77,14 +77,16 @@ type
     wx*: uint8    # 0xFF4B - Window X Position (R/W) - Minus 7?
     # Monochrome Gameboy Palettes
     bgp*: uint8   # 0xFF47 - BG Pallete Data (R/W) 
-    obp1*: uint8  # 0xFF48 - Object Palette 0 Data (R/W)
-    obp2*: uint8  # 0xFF49 - Object Palette 1 Data (R/W)
+    obp0*: uint8  # 0xFF48 - Object Palette 0 Data (R/W)
+    obp1*: uint8  # 0xFF49 - Object Palette 1 Data (R/W)
     # Color Gameboy Palettes
     bgpi*: uint8  # 0xFF68 - Background Palette Index
     bgpd*: uint8  # 0xFF69 - Background Palette Data
     ocps*: uint8  # 0xFF6A - Sprite Palette Index
     ocpd*: uint8  # 0xFF6B - Sprite Palette Data
     vbk*: uint8   # 0xFF4F - VRAM Bank
+    # DMA Request
+    dma*: uint8   # 0xFF46 - DMA Transfer and Start Address
     # LCD VRAM DMA - Color Gameboy Only
     hdma1*: uint8 # 0xFF51 - New DMA Source, High
     hdma2*: uint8 # 0xFF52 - New DMA Source, Low

@@ -1,22 +1,65 @@
 import types
 import bitops
 import cartridge
+import sdl
 
 export types.CPUMemory
 
 proc readByte*(gameboy: Gameboy, address: uint16): uint8 =
   if address < 0x8000:
-      return gameboy.cartridge.readByte(address)
+    return gameboy.cartridge.readByte(address)
   if address < 0xA000:
-      #debugEcho("MEMREAD: ", $toHex(address), " : Video RAM")
-      return 1
+    return 1
   if address < 0xC000:
-      return gameboy.cartridge.readByte(address)
+    return gameboy.cartridge.readByte(address)
+  if address < 0x9FFF:
+    return gameboy.vpu.readByte(address)
   if 0xFF0F == address:
     return gameboy.intFlag
+  # VPU Allocations
+  if 0xFF40 == address:
+    return gameboy.vpu.lcdc
+  if 0xFF41 == address:
+    return gameboy.vpu.stat
+  if 0xFF42 == address:
+    return gameboy.vpu.scy
+  if 0xFF43 == address:
+    return gameboy.vpu.scx
+  if 0xFF44 == address:
+    return gameboy.vpu.ly
+  if 0xFF45 == address:
+    return gameboy.vpu.lyc
+  if 0xFF46 == address:
+    return gameboy.vpu.dma
+  if 0xFF47 == address:
+    return gameboy.vpu.bgp
+  if 0xFF48 == address:
+    return gameboy.vpu.obp0
+  if 0xFF49 == address:
+    return gameboy.vpu.obp1
+  if 0xFF4A == address:
+    return gameboy.vpu.wy
+  if 0xFF4B == address:
+    return gameboy.vpu.ly
+  if 0xFF51 == address:     # Gameboy Color Only
+    return gameboy.vpu.hdma1
+  if 0xFF52 == address:     # Gameboy Color Only
+    return gameboy.vpu.hdma2
+  if 0xFF53 == address:     # Gameboy Color Only
+    return gameboy.vpu.hdma3
+  if 0xFF54 == address:     # Gameboy Color Only
+    return gameboy.vpu.hdma4
+  if 0xFF55 == address:     # Gameboy Color Only
+    return gameboy.vpu.hdma5
+  if 0xFF68 == address:     # Gameboy Color Only
+    return gameboy.vpu.bgpi
+  if 0xFF69 == address:     # Gameboy Color Only
+    return gameboy.vpu.bgpd
+  if 0xFF6A == address:     # Gameboy Color Only
+    return gameboy.vpu.ocps
+  # Global Interrupts Table
   if 0xFFFF == address:
     return gameboy.intEnable
-  return 0 # Undefined Address
 
 proc writeByte*(gameboy: Gameboy; address: uint16; value: uint8): void =
   if address < 0x8000:

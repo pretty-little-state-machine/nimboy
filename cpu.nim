@@ -477,13 +477,12 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 2
     result.debugStr = "LD L " & $toHex(byte)
   of 0x31:
-    let word = cpu.readWord(cpu.pc + 1) # Decode only
     cpu.sp = setLsb(cpu.hl, cpu.mem.gameboy.readByte(cpu.pc + 1))
     cpu.sp = setMsb(cpu.hl, cpu.mem.gameboy.readByte(cpu.pc + 2))
     cpu.pc += 3
     result.tClock = 12
     result.mClock = 3
-    result.debugStr = "LD SP (" & $toHex(word) & ")"
+    result.debugStr = "LD SP (" & $toHex(cpu.sp) & ")"
   of 0x32:
     cpu.mem.gameboy.writeByte(cpu.hl, cpu.a)
     cpu.hl -= 1

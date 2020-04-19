@@ -4,6 +4,10 @@
 # This chip is responsible for displaying graphics on the screen. This program
 # implements the VPU using a simple rendering pipeline as shown:
 #
+# WATCH THIS: https://www.youtube.com/watch?v=HyzD8pNlpwI&t=29m12s
+# 
+# And read this: http://blog.kevtris.org/blogfiles/Nitty%20Gritty%20Gameboy%20VRAM%20Timing.txt
+#
 # Step - (Public Proc)
 #  |> Draw Background (VpuBuffer)
 #  |> Overlay Window  (VpuBuffer)
@@ -26,6 +30,18 @@ import types
 import os
 
 type
+  OAMSearch = array[10, uint8]
+
+  PixelFIFO = array[16, PixelFifoEntry]
+
+  PixelFIFOType = enum
+    ftBackground, ftWindow, ftSprite0, ftSprite1
+
+  PixelFIFOEntry = object
+    data: array[16, uint8]
+    fifoType: PixelFIFOType
+    priority: uint8
+
   # 2bb Encoded Tile Data - 4:1 Compression ratio
   TwoBB = array[16, uint8]
   
@@ -162,16 +178,99 @@ proc drawTestTile*(renderer: RendererPtr; vpu: VPU): void =
   vpuBuffer.drawTile(tile, palette, 0, 0)
   renderer.render(vpuBuffer)
 
+proc readByte*(vpu: Vpu; address: uint16): uint8 {.noSideEffect.} =
+  # TODO Addressing based on BIT 4 of the LDCD register
+  # TODO Pagination for gameboy color
+  if address < 0x9800:
+    result = vpu.vRAMTileDataBank0[address - 0x8000]
+  if address < 0x9C00:
+    result = vpu.vRAMBgMap1[address - 0x9800]
+  if address < 0x9FFF:
+    result = vpu.vRAMBgMap1[address - 0x9C00]
+
 proc renderTileMap*(renderer: RendererPtr; vpu: VPU) =
   case vpu.gb.gameboy.gameboyMode:
   of mgb: renderer.renderMgbTileMap(vpu)
   #of cgb: renderer.renderCgbTileMap(vpu)
   else: discard
 
-proc step*(renderer: RendererPtr; vpu: VPU) =
-  renderer.setDrawColor(r = 255, g = 00, b = 00)
-  for x in countup(50, 100):
-    for y in countup(50, 100):
-      renderer.drawPoint(cint(x), cint(y))
+
+proc stepFifo(): void = 
+  # Read tile from background map
+  let x = 1
+  # Read Data 0 
+  
+  # Read Data 1
+
+  # Construct 8 pixels of data - but NOT VPU pixels
 
 
+proc tickOam(vpu: VPU): void =
+  let x = 1
+
+proc tick*(renderer: RendererPtr; vpu: VPU) =
+  # Processes a tick from the system clock.
+  # Note that the VPU is technically always clocking when turned on.
+  # This is called Cpu.tCycles numbers of times.
+  #
+  # A vertical refresh happens every 70224 clocks (140448 in double speed mode)
+  # LY Refresh timings vary per scanline but take 456 clocks total usually (912 double speed)
+
+
+  # OAM Search - 20 Clocks
+  # Determine up to 10 pixels that can be drawn.
+
+  
+
+  # Pixel Transfer
+
+  # HBlank
+
+  # VBLANK
+
+
+
+
+
+
+#
+# FIFO - Pushes one pixel per clock
+#  4Mhz  Pauses unless it contains more than 8 pixels
+#
+# FETCH - 3 Clocks to fetch 8 pixels
+#  2Mhz   Pauses on 4th clock unless FIFO has room
+#
+# Window wipes out the FIFO and fetch restarts
+#
+# Sprites have 10 comparators 
+#
+# Horizontal Line drawing:
+#
+# [--------------------------------------------------------->>>>>>>>>>>] 43 OR MORE Clocks
+# First Pixel          Piple Cleared    Fetcher reads 
+# |                      FIFO Paused    window tiles    FIFO Resumed
+# |                             |            |         |
+# [][][][][][][][][][][][][][][]-----------------------[][][][][][]//[] 
+#                              |
+#                         Start of Window
+#
+#
+# Thus this is how the modes work:
+#  
+#      |----20 Clocks----|<-----43+ Clocks----->|<-------51- Clocks------->|
+# ___  +===================================================================+
+#  |   |                 |                      |                          |
+#  |   |                 |                         |                       |
+#  |   |       OAM       |    Pixel Transfer    |        H-BLANK           |
+#  |   |                 |                      |                          |
+#  |   |                 |                      |                          |
+# 144  |                 |                       |                         |
+# Lines|                 |                             |                   |
+#  |   |                 |                      |                          |
+#  |   |                 |                      |                          |
+#  |   |                 |                      |                          |
+# ---  |-------------------------------------------------------------------|
+#  10  |                           VBLANK                                  |
+# ---  +===================================================================+
+#
+  let x = 1
