@@ -31,29 +31,29 @@ proc setLsb(word: var uint16; byte: uint8): uint16 =
   word.setMask(byte)
   return word
 
-proc clearFlagZ(cpu: var CPU) = 
-  cpu.f.clearMask(0b1000_0000'u8)
+proc setFlagZ(cpu: var CPU; bool: bool): void = 
+  if bool:
+    cpu.f.setMask(0b1000_0000'u8)
+  else:
+    cpu.f.clearMask(0b1000_0000'u8)
 
-proc clearFlagN(cpu: var CPU) = 
-  cpu.f.clearMask(0b0100_0000'u8)
+proc setFlagN(cpu: var CPU; bool: bool): void = 
+  if bool:
+    cpu.f.setMask(0b0100_0000'u8)
+  else:
+    cpu.f.clearMask(0b0100_0000'u8)
 
-proc clearFlagH(cpu: var CPU) = 
-  cpu.f.clearMask(0b0010_0000'u8)
+proc setFlagH(cpu: var CPU; bool: bool): void = 
+  if bool:
+    cpu.f.setMask(0b0010_0000'u8)
+  else:
+    cpu.f.clearMask(0b0010_0000'u8)
 
-proc clearFlagC(cpu: var CPU) = 
-  cpu.f.clearMask(0b0001_0000'u8)
-
-proc setFlagZ(cpu: var CPU) = 
-  cpu.f.setMask(0b1000_0000'u8)
-
-proc setFlagN(cpu: var CPU) = 
-  cpu.f.setMask(0b0100_0000'u8)
-
-proc setFlagH(cpu: var CPU) = 
-  cpu.f.setMask(0b0010_0000'u8)
-
-proc setFlagC(cpu: var CPU) = 
-  cpu.f.setMask(0b0001_0000'u8)
+proc setFlagC(cpu: var CPU; bool: bool): void = 
+  if bool:
+    cpu.f.setMask(0b0001_0000'u8)
+  else:
+    cpu.f.clearMask(0b0001_0000'u8)
 
 proc zFlag(cpu: var CPU): bool =
   return cpu.f.testBit(7)
@@ -67,72 +67,89 @@ proc hFlag(cpu: var CPU): bool =
 proc cFlag(cpu: var CPU): bool =
   return cpu.f.testBit(4)
 
+proc isAddCarry(a: uint8; b: uint8): bool = 
+  let x = int(a) + int(b) # Cast, otherwise it will overflow
+  result = x > 0xFF
+
+proc isSubCarry(a: uint8; b: uint8): bool = 
+  let x = int(a) + int(b) # Cast, otherwise it will be unsigned
+  result = x < 0
+
 proc isAddHalfCarry(a: uint8; b: uint8): bool =
   # Deterimines if bit4 was carried during addition
   result = bitand(a.bitand(0xF) + b.bitand(0xF), 0x10) == 0x10
 
 proc isSubHalfCarry(a: uint8; b: uint8): bool =
-  # Deterimines if bit4 was carried during addition
-  result = bitand(a.bitand(0xF) - b.bitand(0xF), 0x10) == 0x10
+  # Deterimines if bit4 was carried during subtraction
+  result = bitand(a.bitand(0xF) - b.bitand(0xF), 0x10) < 0
 
 proc opOr(cpu: var CPU; value: uint8): void = 
   # Executes an OR operation on the A Register
-  cpu.clearFlagC()
-  cpu.clearFlagN()
-  cpu.clearFlagH()
+  cpu.setFlagC(false)
+  cpu.setFlagN(false)
+  cpu.setFlagH(false)
   cpu.a = bitor(cpu.a, value)
-  if 0 == cpu.a: 
-    cpu.setFlagZ()
-  else:
-    cpu.clearFlagZ()
+  cpu.setFlagZ(0 == cpu.a)
 
 proc opAnd(cpu: var CPU; value: uint8): void = 
   # Executes an AND operation on the A Register
-  cpu.clearFlagC()
-  cpu.clearFlagN()
-  cpu.setFlagH()
+  cpu.setFlagC(false)
+  cpu.setFlagN(false)
+  cpu.setFlagH(true)
   cpu.a = bitand(cpu.a, value)
-  if 0 == cpu.a: 
-    cpu.setFlagZ()
-  else:
-    cpu.clearFlagZ()
+  cpu.setFlagZ(0 == cpu.a)
 
 proc opXor(cpu: var CPU; value: uint8): void = 
   # Executes a XOR operation on the A Register
-  cpu.clearFlagC()
-  cpu.clearFlagN()
-  cpu.clearFlagH()
+  cpu.setFlagC(false)
+  cpu.setFlagN(false)
+  cpu.setFlagH(false)
   cpu.a = bitxor(cpu.a, value)
-  if 0 == cpu.a: 
-    cpu.setFlagZ()
-  else:
-    cpu.clearFlagZ()
+  cpu.setFlagZ(0 == cpu.a)
+
+proc opAdd(cpu: var CPU; value: uint8): void = 
+  # Executes add on the A Register
+  cpu.setFlagN(false)
+  cpu.setFlagH(isAddHalfCarry(cpu.a, value))
+  cpu.setFlagC(isAddCarry(cpu.a, value))
+  cpu.a = cpu.a + value;
+  cpu.setFlagZ(0 == cpu.a)
+
+proc opAdc(cpu: var CPU; value: uint8): void = 
+  var tmp = value
+  # Executes add on the A Register + Carry if set
+  if cpu.cFlag: tmp += 1
+  cpu.setFlagN(false)
+  cpu.setFlagH(isAddHalfCarry(cpu.a, tmp))
+  cpu.setFlagC(isAddCarry(cpu.a, tmp))
+  cpu.a = cpu.a + tmp;
+  cpu.setFlagZ(0 == cpu.a)
 
 proc opSub(cpu: var CPU; value: uint8): void = 
   # Executes substration on the A Register
-  cpu.setFlagN()
-  if isSubHalfCarry(cpu.a, value):
-    cpu.setFlagH()
-  else:
-    cpu.clearFlagH()
+  cpu.setFlagN(true)
+  cpu.setFlagH(isSubHalfCarry(cpu.a, value))
+  cpu.setFlagC(isSubCarry(cpu.a, value))
   cpu.a = cpu.a - value;
-  if 0 == cpu.a: 
-    cpu.setFlagZ()
-  else: 
-    cpu.clearFlagZ
+  cpu.setFlagZ(0 == cpu.a)
+
+proc opSbc(cpu: var CPU; value: uint8): void = 
+  var tmp = value
+  # Executes substration on the A Register - Carry Flag
+  if cpu.cFlag: tmp += 1 # Carry is an additional decrement later
+  cpu.setFlagN(true)
+  cpu.setFlagH(isSubHalfCarry(cpu.a, tmp))
+  cpu.setFlagC(isSubCarry(cpu.a, tmp))
+  cpu.a = cpu.a - tmp;
+  cpu.setFlagZ(0 == cpu.a)
 
 proc opCp(cpu: var CPU; value: uint8): void = 
   # Compares A to value, this is essentially subtract with ignored results
   let tmpA = cpu.a
-  cpu.setFlagN()
-  if isSubHalfCarry(tmpA, value):
-    cpu.setFlagH()
-  else:
-    cpu.clearFlagH()
-  if 0 == tmpA - value: 
-    cpu.setFlagZ()
-  else: 
-    cpu.clearFlagZ
+  cpu.setFlagN(true)
+  cpu.setFlagH(isSubHalfCarry(tmpA, value))
+  cpu.setFlagC(isSubCarry(tmpA, value))
+  cpu.setFlagZ(0 == tmpA - value)
 
 template toSigned(x: uint8): int8 = cast[int8](x)
 
@@ -145,18 +162,16 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 1
     result.debugStr = "NOP"
   of 0x05:
+    # TODO: Investigate the half-carry here.
     cpu.pc += 1
-    cpu.setFlagN()
+    cpu.setFlagN(true)
     # Rollover
     if 0 == cpu.bc.readMsb():
       cpu.bc = setMsb(cpu.bc, 0xFF)
-      cpu.setFlagH()
+      cpu.setFlagH(true)
     else:
       cpu.bc = setMsb(cpu.bc, cpu.bc.readMsb() - 1)
-    if 0 == readMsb(cpu.bc):
-       cpu.setFlagZ()
-    else:
-        cpu.clearFlagZ()
+    cpu.setFlagZ( 0 == readMsb(cpu.bc))
     result.tClock = 4
     result.mClock = 1
     result.debugStr = "DEC B"
@@ -168,18 +183,19 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 2
     result.debugStr = "LD B " & $toHex(byte)
   of 0x0D:
+    # TODO: Investigate the half-carry here
     cpu.pc += 1
-    cpu.setFlagN()
+    cpu.setFlagN(true)
     # Rollover
     if 0 == cpu.bc.readLsb():
       cpu.bc = setLsb(cpu.bc, 0xFF)
-      cpu.setFlagH()
+      cpu.setFlagH(true)
     else:
       cpu.bc = setLsb(cpu.bc, cpu.bc.readLsb() - 1)
     if 0 == readLsb(cpu.bc):
-       cpu.setFlagZ()
+       cpu.setFlagZ(true)
     else:
-        cpu.clearFlagZ()
+        cpu.setFlagZ(false)
     result.tClock = 4
     result.mClock = 1
     result.debugStr = "DEC C"
@@ -223,6 +239,104 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "LD A " & $toHex(cpu.a)
+  of 0x80:
+    cpu.pc += 1
+    cpu.opAdd(readMsb(cpu.bc))
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "ADD B"
+  of 0x81:
+    cpu.pc += 1
+    cpu.opAdd(readLsb(cpu.bc))
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "ADD C"
+  of 0x82:
+    cpu.pc += 1
+    cpu.opAdd(readMsb(cpu.de))
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "ADD D"
+  of 0x83:
+    cpu.pc += 1
+    cpu.opAdd(readLsb(cpu.de))
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "ADD E"
+  of 0x84:
+    cpu.pc += 1
+    cpu.opAdd(readMsb(cpu.hl))
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "ADD H"
+  of 0x85:
+    cpu.pc += 1
+    cpu.opAdd(readLsb(cpu.hl))
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "ADD L"
+  of 0x86: 
+    let value = cpu.mem.gameboy.readbyte(cpu.pc + 1)
+    cpu.opAdd(value)
+    cpu.pc += 2
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "ADD (HL)"  & $toHex(value)
+  of 0x87:
+    cpu.pc += 1
+    cpu.opAdd(cpu.a)
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "ADD A"
+  of 0x88:
+    cpu.pc += 1
+    cpu.opAdc(readMsb(cpu.hl))
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "ADC B"
+  of 0x89:
+    cpu.pc += 1
+    cpu.opAdc(readLsb(cpu.bc))
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "ADC C"
+  of 0x8A:
+    cpu.pc += 1
+    cpu.opAdc(readMsb(cpu.de))
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "ADC D"
+  of 0x8B:
+    cpu.pc += 1
+    cpu.opAdc(readLsb(cpu.de))
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "ADC E"
+  of 0x8C:
+    cpu.pc += 1
+    cpu.opAdc(readMsb(cpu.hl))
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "ADC H"
+  of 0x8D:
+    cpu.pc += 1
+    cpu.opAdc(readLsb(cpu.hl))
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "ADC L"
+  of 0x8E: 
+    let value = cpu.mem.gameboy.readbyte(cpu.pc + 1)
+    cpu.opAdc(value)
+    cpu.pc += 2
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "ADC (HL)"  & $toHex(value)
+  of 0x8F:
+    cpu.pc += 1
+    cpu.opAdc(cpu.a)
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "ADC A"
   of 0x90:
     cpu.pc += 1
     cpu.opSub(readMsb(cpu.bc))
@@ -272,6 +386,55 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.tClock = 4
     result.mClock = 1
     result.debugStr = "SUB A"
+  of 0x98:
+    cpu.pc += 1
+    cpu.opSbc(readMsb(cpu.hl))
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "SBC B"
+  of 0x99:
+    cpu.pc += 1
+    cpu.opSbc(readLsb(cpu.bc))
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "SBC C"
+  of 0x9A:
+    cpu.pc += 1
+    cpu.opSbc(readMsb(cpu.de))
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "SBC D"
+  of 0x9B:
+    cpu.pc += 1
+    cpu.opSbc(readLsb(cpu.de))
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "SBC E"
+  of 0x9C:
+    cpu.pc += 1
+    cpu.opSbc(readMsb(cpu.hl))
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "SBC H"
+  of 0x9D:
+    cpu.pc += 1
+    cpu.opSbc(readLsb(cpu.hl))
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "SBC L"
+  of 0x9E: 
+    let value = cpu.mem.gameboy.readbyte(cpu.pc + 1)
+    cpu.opSbc(value)
+    cpu.pc += 2
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "SBC (HL)"  & $toHex(value)
+  of 0x9F:
+    cpu.pc += 1
+    cpu.opSbc(cpu.a)
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "SBC A"
   of 0xA0:
     cpu.pc += 1
     cpu.opAnd(readMsb(cpu.bc))
