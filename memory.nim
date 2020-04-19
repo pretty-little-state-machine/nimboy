@@ -93,3 +93,28 @@ proc triggerJoypadInterrupt*(gameboy: var Gameboy): void =
   var ie = gameboy.readByte(0xFF0F)
   ie.setBit(4)
   gameboy.writeByte(0xFF0F, ie)
+
+proc clearVSyncInterrupt*(gameboy: var Gameboy): void =
+  var ie = gameboy.readByte(0xFF0F)
+  ie.clearBit(0)
+  gameboy.writeByte(0xFF0F, ie)
+
+proc clearLCDStatInterrupt*(gameboy: var Gameboy): void =
+  var ie = gameboy.readByte(0xFF0F)
+  ie.clearBit(1)
+  gameboy.writeByte(0xFF0F, ie)
+
+proc clearTimerInterrupt*(gameboy: var Gameboy): void =
+  var ie = gameboy.readByte(0xFF0F)
+  ie.clearBit(2)
+  gameboy.writeByte(0xFF0F, ie)
+
+proc clearSerialInterrupt*(gameboy: var Gameboy): void =
+  var ie = gameboy.readByte(0xFF0F)
+  ie.clearBit(3)
+  gameboy.writeByte(0xFF0F, ie)
+
+proc clearJoypadInterrupt*(gameboy: var Gameboy): void =
+  var ie = gameboy.readByte(0xFF0F)
+  ie.clearBit(4)
+  gameboy.writeByte(0xFF0F, ie)
