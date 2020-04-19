@@ -31,6 +31,19 @@ proc setLsb(word: var uint16; byte: uint8): uint16 =
   word.setMask(byte)
   return word
 
+proc push(cpu: var CPU; address: uint16; value: uint8): void =
+  # Push onto the stack. This does NOT calculate any cycles for this.
+  cpu.mem.gameboy.writeByte(address, readLsb(cpu.pc))
+  cpu.sp -= 1
+  cpu.mem.gameboy.writeByte(address, readMsb(cpu.pc))
+
+proc call(cpu: var CPU): void =
+  # Push onto the stack. This does NOT calculate any cycles for this.
+  cpu.sp -= 1
+  cpu.mem.gameboy.writeByte(cpu.sp, readLsb(cpu.pc))
+  cpu.sp -= 1
+  cpu.mem.gameboy.writeByte(cpu.sp, readMsb(cpu.pc))
+
 proc setFlagZ(cpu: var CPU; bool: bool): void = 
   if bool:
     cpu.f.setMask(0b1000_0000'u8)
@@ -161,17 +174,47 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.tClock = 4
     result.mClock = 1
     result.debugStr = "NOP"
-  of 0x05:
-    # TODO: Investigate the half-carry here.
+  of 0x01:
+    let word = cpu.readWord(cpu.pc + 1) # Decode only
+    cpu.bc = setLsb(cpu.hl, cpu.mem.gameboy.readByte(cpu.pc + 1))
+    cpu.bc = setMsb(cpu.hl, cpu.mem.gameboy.readByte(cpu.pc + 2))
+    cpu.pc += 3
+    result.tClock = 12
+    result.mClock = 3
+    result.debugStr = "LD BC (" & $toHex(word) & ")"
+  of 0x02:
+    cpu.mem.gameboy.writeByte(cpu.bc, cpu.a)
     cpu.pc += 1
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "LD BC ( " & $toHex(cpu.bc) & ") " & $toHex(cpu.a)
+  of 0x03:
+    cpu.bc += 1
+    cpu.pc += 1
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "INC BC"
+  of 0x04:
+    # Note that Carry is NOT set on this operation
+    var tmp = readMsb(cpu.bc)
     cpu.setFlagN(true)
-    # Rollover
-    if 0 == cpu.bc.readMsb():
-      cpu.bc = setMsb(cpu.bc, 0xFF)
-      cpu.setFlagH(true)
-    else:
-      cpu.bc = setMsb(cpu.bc, cpu.bc.readMsb() - 1)
-    cpu.setFlagZ( 0 == readMsb(cpu.bc))
+    cpu.setFlagH(isAddHalfCarry(tmp, 1))
+    tmp = tmp + 1;
+    cpu.setFlagZ(0 == tmp)
+    cpu.bc = setMsb(cpu.bc, tmp)
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "INC B"
+  of 0x05:
+    # Note that Carry is NOT set on this operation
+    var tmp = readMsb(cpu.bc)
+    cpu.setFlagN(true)
+    cpu.setFlagH(isSubHalfCarry(tmp, 1))
+    tmp = tmp - 1;
+    cpu.setFlagZ(0 == tmp)
+    cpu.bc = setMsb(cpu.bc, tmp)
+    cpu.pc += 1
     result.tClock = 4
     result.mClock = 1
     result.debugStr = "DEC B"
@@ -182,20 +225,39 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "LD B " & $toHex(byte)
-  of 0x0D:
-    # TODO: Investigate the half-carry here
+  of 0x0A:
+    cpu.a = cpu.mem.gameboy.readByte(cpu.bc)
     cpu.pc += 1
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "LD A (BC) " & $toHex(cpu.bc)
+  of 0x0B:
+    cpu.bc -= 1
+    cpu.pc += 1
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "DEC BC"
+  of 0x0C:
+    # Note that Carry is NOT set on this operation
+    var tmp = readLsb(cpu.bc)
     cpu.setFlagN(true)
-    # Rollover
-    if 0 == cpu.bc.readLsb():
-      cpu.bc = setLsb(cpu.bc, 0xFF)
-      cpu.setFlagH(true)
-    else:
-      cpu.bc = setLsb(cpu.bc, cpu.bc.readLsb() - 1)
-    if 0 == readLsb(cpu.bc):
-       cpu.setFlagZ(true)
-    else:
-        cpu.setFlagZ(false)
+    cpu.setFlagH(isAddHalfCarry(tmp, 1))
+    tmp = tmp + 1;
+    cpu.setFlagZ(0 == tmp)
+    cpu.bc = setLsb(cpu.bc, tmp)
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "INC C"
+  of 0x0D:
+    # Note that Carry is NOT set on this operation
+    var tmp = readLsb(cpu.bc)
+    cpu.setFlagN(true)
+    cpu.setFlagH(isSubHalfCarry(tmp, 1))
+    tmp = tmp - 1;
+    cpu.setFlagZ(0 == tmp)
+    cpu.bc = setLsb(cpu.bc, tmp)
+    cpu.pc += 1
     result.tClock = 4
     result.mClock = 1
     result.debugStr = "DEC C"
@@ -206,6 +268,106 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "LD C " & $toHex(byte)
+  of 0x10:
+    cpu.mem.gameboy.stopped = true
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "STOP"
+  of 0x11:
+    let word = cpu.readWord(cpu.pc + 1) # Decode only
+    cpu.de = setLsb(cpu.hl, cpu.mem.gameboy.readByte(cpu.pc + 1))
+    cpu.de = setMsb(cpu.hl, cpu.mem.gameboy.readByte(cpu.pc + 2))
+    cpu.pc += 3
+    result.tClock = 12
+    result.mClock = 3
+    result.debugStr = "LD DE (" & $toHex(word) & ")"
+  of 0x12:
+    cpu.mem.gameboy.writeByte(cpu.de, cpu.a)
+    cpu.pc += 1
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "LD DE (" & $toHex(cpu.de) & ") " & $toHex(cpu.a)
+  of 0x13:
+    cpu.de += 1
+    cpu.pc += 1
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "INC DE"
+  of 0x14:
+    # Note that Carry is NOT set on this operation
+    var tmp = readMsb(cpu.de)
+    cpu.setFlagN(true)
+    cpu.setFlagH(isAddHalfCarry(tmp, 1))
+    tmp = tmp + 1;
+    cpu.setFlagZ(0 == tmp)
+    cpu.de = setMsb(cpu.de, tmp)
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "INC D"
+  of 0x15:
+    # Note that Carry is NOT set on this operation
+    var tmp = readMsb(cpu.de)
+    cpu.setFlagN(true)
+    cpu.setFlagH(isSubHalfCarry(tmp, 1))
+    tmp = tmp - 1;
+    cpu.setFlagZ(0 == tmp)
+    cpu.de = setMsb(cpu.de, tmp)
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "DEC D"
+  of 0x16:
+    let byte =  cpu.mem.gameboy.readByte(cpu.pc + 1)
+    cpu.de = setMsb(cpu.de, byte)
+    cpu.pc += 2
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "LD D " & $toHex(byte)
+  of 0x1A:
+    cpu.a = cpu.mem.gameboy.readByte(cpu.de)
+    cpu.pc += 1
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "LD A (DE) " & $toHex(cpu.de)
+  of 0x1B:
+    cpu.de -= 1
+    cpu.pc += 1
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "DEC DE"
+  of 0x1C:
+    # Note that Carry is NOT set on this operation
+    var tmp = readLsb(cpu.de)
+    cpu.setFlagN(true)
+    cpu.setFlagH(isAddHalfCarry(tmp, 1))
+    tmp = tmp + 1;
+    cpu.setFlagZ(0 == tmp)
+    cpu.de = setLsb(cpu.de, tmp)
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "INC E"
+  of 0x1D:
+    # Note that Carry is NOT set on this operation
+    var tmp = readLsb(cpu.de)
+    cpu.setFlagN(true)
+    cpu.setFlagH(isSubHalfCarry(tmp, 1))
+    tmp = tmp - 1;
+    cpu.setFlagZ(0 == tmp)
+    cpu.de = setLsb(cpu.de, tmp)
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "DEC E"
+  of 0x1E:
+    let byte = cpu.mem.gameboy.readByte(cpu.pc + 1)
+    cpu.de = setLsb(cpu.de, byte)
+    cpu.pc += 2
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "LD E " & $toHex(byte)
   of 0x20:
     let signed = toSigned(cpu.mem.gameboy.readbyte(cpu.pc + 1))
     cpu.pc += 2 # The program counter always increments first!
@@ -225,7 +387,103 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     cpu.pc += 3
     result.tClock = 12
     result.mClock = 3
-    result.debugStr = "LD HL " & $toHex(word)
+    result.debugStr = "LD HL (" & $toHex(word) & ")"
+  of 0x22:
+    cpu.mem.gameboy.writeByte(cpu.hl, cpu.a)
+    cpu.hl += 1
+    cpu.pc += 1
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "LDI " & $toHex(cpu.hl) & " " & $toHex(cpu.a)
+  of 0x23:
+    cpu.hl += 1
+    cpu.pc += 1
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "INC HL"
+  of 0x24:
+    # Note that Carry is NOT set on this operation
+    var tmp = readMsb(cpu.hl)
+    cpu.setFlagN(true)
+    cpu.setFlagH(isAddHalfCarry(tmp, 1))
+    tmp = tmp + 1;
+    cpu.setFlagZ(0 == tmp)
+    cpu.hl = setMsb(cpu.hl, tmp)
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "INC H"
+  of 0x25:
+    # Note that Carry is NOT set on this operation
+    var tmp = readMsb(cpu.hl)
+    cpu.setFlagN(true)
+    cpu.setFlagH(isSubHalfCarry(tmp, 1))
+    tmp = tmp - 1;
+    cpu.setFlagZ(0 == tmp)
+    cpu.hl = setMsb(cpu.hl, tmp)
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "DEC H"
+  of 0x26:
+    let byte =  cpu.mem.gameboy.readByte(cpu.pc + 1)
+    cpu.hl = setMsb(cpu.hl, byte)
+    cpu.pc += 2
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "LD H " & $toHex(byte)
+  of 0x2A:
+    cpu.a = cpu.mem.gameboy.readByte(cpu.hl)
+    cpu.hl += 1
+    cpu.pc += 1
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "LD A (HL+)"
+  of 0x2B:
+    cpu.hl -= 1
+    cpu.pc += 1
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "DEC HL"
+  of 0x2C:
+    # Note that Carry is NOT set on this operation
+    var tmp = readLsb(cpu.hl)
+    cpu.setFlagN(true)
+    cpu.setFlagH(isAddHalfCarry(tmp, 1))
+    tmp = tmp + 1;
+    cpu.setFlagZ(0 == tmp)
+    cpu.hl = setLsb(cpu.hl, tmp)
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "INC L"
+  of 0x2D:
+    # Note that Carry is NOT set on this operation
+    var tmp = readLsb(cpu.hl)
+    cpu.setFlagN(true)
+    cpu.setFlagH(isSubHalfCarry(tmp, 1))
+    tmp = tmp - 1;
+    cpu.setFlagZ(0 == tmp)
+    cpu.hl = setLsb(cpu.hl, tmp)
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "DEC L"
+  of 0x2E:
+    let byte = cpu.mem.gameboy.readByte(cpu.pc + 1)
+    cpu.hl = setLsb(cpu.hl, byte)
+    cpu.pc += 2
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "LD L " & $toHex(byte)
+  of 0x31:
+    let word = cpu.readWord(cpu.pc + 1) # Decode only
+    cpu.sp = setLsb(cpu.hl, cpu.mem.gameboy.readByte(cpu.pc + 1))
+    cpu.sp = setMsb(cpu.hl, cpu.mem.gameboy.readByte(cpu.pc + 2))
+    cpu.pc += 3
+    result.tClock = 12
+    result.mClock = 3
+    result.debugStr = "LD SP (" & $toHex(word) & ")"
   of 0x32:
     cpu.mem.gameboy.writeByte(cpu.hl, cpu.a)
     cpu.hl -= 1
@@ -233,12 +491,481 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "LDD " & $toHex(cpu.hl) & " " & $toHex(cpu.a)
+  of 0x33:
+    cpu.sp += 1
+    cpu.pc += 1
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "INC SP"
+  of 0x34:
+    # Note that Carry is NOT set on this operation
+    var tmp = cpu.mem.gameboy.readByte(cpu.hl)
+    cpu.setFlagN(true)
+    cpu.setFlagH(isAddHalfCarry(tmp, 1))
+    tmp = tmp + 1;
+    cpu.setFlagZ(0 == tmp)
+    cpu.mem.gameboy.writeByte(cpu.hl, tmp)
+    cpu.pc += 1
+    result.tClock = 12
+    result.mClock = 4
+    result.debugStr = "INC (HL) " & $toHex(cpu.hl)
+  of 0x35:
+    # Note that Carry is NOT set on this operation
+    var tmp = cpu.mem.gameboy.readByte(cpu.hl)
+    cpu.setFlagN(true)
+    cpu.setFlagH(isSubHalfCarry(tmp, 1))
+    tmp = tmp - 1;
+    cpu.setFlagZ(0 == tmp)
+    cpu.mem.gameboy.writeByte(cpu.hl, tmp)
+    cpu.pc += 1
+    result.tClock = 12
+    result.mClock = 4
+    result.debugStr = "DEC (HL) " & $toHex(cpu.hl)
+  of 0x36:
+    let byte =  cpu.mem.gameboy.readByte(cpu.pc + 1)
+    cpu.mem.gameboy.writeByte(cpu.hl, byte)
+    cpu.pc += 2
+    result.tClock = 12
+    result.mClock = 4
+    result.debugStr = "LD (HL) " & $toHex(byte)
+  of 0x3A:
+    cpu.a = cpu.mem.gameboy.readByte(cpu.hl)
+    cpu.hl -= 1
+    cpu.pc += 1
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "LD A (HL-)"
+  of 0x3B:
+    cpu.sp -= 1
+    cpu.pc += 1
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "DEC SP"
+  of 0x3C:
+    # Note that Carry is NOT set on this operation
+    var tmp = cpu.a
+    cpu.setFlagN(true)
+    cpu.setFlagH(isAddHalfCarry(tmp, 1))
+    tmp = tmp + 1;
+    cpu.setFlagZ(0 == tmp)
+    cpu.a = tmp
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "INC A"
+  of 0x3D:
+    # Note that Carry is NOT set on this operation
+    var tmp = cpu.a
+    cpu.setFlagN(true)
+    cpu.setFlagH(isSubHalfCarry(tmp, 1))
+    tmp = tmp - 1;
+    cpu.setFlagZ(0 == tmp)
+    cpu.a = tmp
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "DEC A"
   of 0x3E:
     cpu.a = cpu.mem.gameboy.readbyte(cpu.pc + 1)
     cpu.pc += 2
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "LD A " & $toHex(cpu.a)
+  of 0x40:
+    cpu.bc = setMsb(cpu.bc, readMsb(cpu.bc))
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "LD B, B"
+  of 0x41:
+    cpu.bc = setMsb(cpu.bc, readLsb(cpu.bc))
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "LD B, C"
+  of 0x42:
+    cpu.bc = setMsb(cpu.bc, readMsb(cpu.de))
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "LD B, D"
+  of 0x43:
+    cpu.bc = setMsb(cpu.bc, readLsb(cpu.de))
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "LD B, E"
+  of 0x44:
+    cpu.bc = setMsb(cpu.bc, readMsb(cpu.hl))
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "LD B, H"
+  of 0x45:
+    cpu.bc = setMsb(cpu.bc, readLsb(cpu.hl))
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "LD B, L"
+  of 0x46:
+    let value = cpu.mem.gameboy.readbyte(cpu.pc + 1)
+    cpu.bc = setMsb(cpu.bc, value)
+    cpu.pc += 2
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "LD B, (HL) " & $toHex(value)
+  of 0x47:
+    cpu.pc += 1
+    cpu.bc = setMsb(cpu.bc, cpu.a)
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "LD B, A"
+  of 0x48:
+    cpu.bc = setLsb(cpu.bc, readMsb(cpu.bc))
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "LD C, B"
+  of 0x49:
+    cpu.bc = setLsb(cpu.bc, readLsb(cpu.bc))
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "LD C, C"
+  of 0x4A:
+    cpu.bc = setLsb(cpu.bc, readMsb(cpu.de))
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "LD C, D"
+  of 0x4B:
+    cpu.bc = setLsb(cpu.bc, readLsb(cpu.de))
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "LD C, E"
+  of 0x4C:
+    cpu.bc = setLsb(cpu.bc, readMsb(cpu.hl))
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "LD C, H"
+  of 0x4D:
+    cpu.bc = setLsb(cpu.bc, readLsb(cpu.hl))
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "LD C, L"
+  of 0x4E:
+    let value = cpu.mem.gameboy.readbyte(cpu.pc + 1)
+    cpu.bc = setLsb(cpu.bc, value)
+    cpu.pc += 2
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "LD C, (HL) " & $toHex(value)
+  of 0x4F:
+    cpu.pc += 1
+    cpu.bc = setLsb(cpu.bc, cpu.a)
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "LD C, A"
+
+
+  of 0x50:
+    cpu.de = setMsb(cpu.de, readMsb(cpu.bc))
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "LD D, B"
+  of 0x51:
+    cpu.de = setMsb(cpu.de, readLsb(cpu.bc))
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "LD D, C"
+  of 0x52:
+    cpu.de = setMsb(cpu.de, readMsb(cpu.de))
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "LD D, D"
+  of 0x53:
+    cpu.de = setMsb(cpu.de, readLsb(cpu.de))
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "LD D, E"
+  of 0x54:
+    cpu.de = setMsb(cpu.de, readMsb(cpu.hl))
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "LD D, H"
+  of 0x55:
+    cpu.de = setMsb(cpu.de, readLsb(cpu.hl))
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "LD D, L"
+  of 0x56:
+    let value = cpu.mem.gameboy.readbyte(cpu.pc + 1)
+    cpu.de = setMsb(cpu.de, value)
+    cpu.pc += 2
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "LD D, (HL) " & $toHex(value)
+  of 0x57:
+    cpu.pc += 1
+    cpu.de = setMsb(cpu.de, cpu.a)
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "LD D, A"
+  of 0x58:
+    cpu.de = setLsb(cpu.de, readMsb(cpu.bc))
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "LD E, B"
+  of 0x59:
+    cpu.de = setLsb(cpu.de, readLsb(cpu.bc))
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "LD E, C"
+  of 0x5A:
+    cpu.de = setLsb(cpu.de, readMsb(cpu.de))
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "LD E, D"
+  of 0x5B:
+    cpu.de = setLsb(cpu.de, readLsb(cpu.de))
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "LD E, E"
+  of 0x5C:
+    cpu.de = setLsb(cpu.de, readMsb(cpu.hl))
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "LD E, H"
+  of 0x5D:
+    cpu.de = setLsb(cpu.de, readLsb(cpu.hl))
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "LD E, L"
+  of 0x5E:
+    let value = cpu.mem.gameboy.readbyte(cpu.pc + 1)
+    cpu.de = setLsb(cpu.de, value)
+    cpu.pc += 2
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "LD E, (HL) " & $toHex(value)
+  of 0x5F:
+    cpu.pc += 1
+    cpu.de = setLsb(cpu.de, cpu.a)
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "LD E, A"
+
+
+
+  of 0x60:
+    cpu.hl = setMsb(cpu.hl, readMsb(cpu.bc))
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "LD H, B"
+  of 0x61:
+    cpu.hl = setMsb(cpu.hl, readLsb(cpu.bc))
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "LD H, C"
+  of 0x62:
+    cpu.hl = setMsb(cpu.hl, readMsb(cpu.de))
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "LD H, D"
+  of 0x63:
+    cpu.hl = setMsb(cpu.hl, readLsb(cpu.de))
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "LD H, E"
+  of 0x64:
+    cpu.hl = setMsb(cpu.hl, readMsb(cpu.hl))
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "LD H, H"
+  of 0x65:
+    cpu.hl = setMsb(cpu.hl, readLsb(cpu.hl))
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "LD H, L"
+  of 0x66:
+    let value = cpu.mem.gameboy.readbyte(cpu.pc + 1)
+    cpu.hl = setMsb(cpu.hl, value)
+    cpu.pc += 2
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "LD H, (HL) " & $toHex(value)
+  of 0x67:
+    cpu.pc += 1
+    cpu.hl = setMsb(cpu.hl, cpu.a)
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "LD H, A"
+  of 0x68:
+    cpu.hl = setLsb(cpu.hl, readMsb(cpu.bc))
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "LD L, B"
+  of 0x69:
+    cpu.hl = setLsb(cpu.hl, readLsb(cpu.bc))
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "LD L, C"
+  of 0x6A:
+    cpu.hl = setLsb(cpu.hl, readMsb(cpu.de))
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "LD L, D"
+  of 0x6B:
+    cpu.hl = setLsb(cpu.hl, readLsb(cpu.de))
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "LD L, E"
+  of 0x6C:
+    cpu.hl = setLsb(cpu.hl, readMsb(cpu.hl))
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "LD L, H"
+  of 0x6D:
+    cpu.hl = setLsb(cpu.hl, readLsb(cpu.hl))
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "LD L, L"
+  of 0x6E:
+    let value = cpu.mem.gameboy.readbyte(cpu.pc + 1)
+    cpu.hl = setLsb(cpu.hl, value)
+    cpu.pc += 2
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "LD L, (HL) " & $toHex(value)
+  of 0x6F:
+    cpu.pc += 1
+    cpu.hl = setLsb(cpu.hl, cpu.a)
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "LD L, A"
+  of 0x70:
+    cpu.bc = setMsb(cpu.bc, cpu.mem.gameboy.readByte(cpu.hl))
+    cpu.pc += 1
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "LD (HL), B"
+  of 0x71:
+    cpu.bc = setLsb(cpu.bc, cpu.mem.gameboy.readByte(cpu.hl))
+    cpu.pc += 1
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "LD (HL), C"
+  of 0x72:
+    cpu.de = setMsb(cpu.de, cpu.mem.gameboy.readByte(cpu.hl))
+    cpu.pc += 1
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "LD (HL), D"
+  of 0x73:
+    cpu.de = setLsb(cpu.de, cpu.mem.gameboy.readByte(cpu.hl))
+    cpu.pc += 1
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "LD (HL), E"
+  of 0x74:
+    cpu.hl = setMsb(cpu.hl, cpu.mem.gameboy.readByte(cpu.hl))
+    cpu.pc += 1
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "LD (HL), H"
+  of 0x75:
+    cpu.hl = setLsb(cpu.hl, cpu.mem.gameboy.readByte(cpu.hl))
+    cpu.pc += 1
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "LD (HL), L"
+  of 0x76:
+    cpu.halted = true
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "HALT"
+  of 0x77:
+    cpu.a = cpu.mem.gameboy.readByte(cpu.hl)
+    cpu.pc += 1
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "LD (HL), A"
+  of 0x78:
+    cpu.a = readMsb(cpu.bc)
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "LD A, B"
+  of 0x79:
+    cpu.a = readLsb(cpu.bc)
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "LD A, C"
+  of 0x7A:
+    cpu.a = readMsb(cpu.de)
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "LD A, D"
+  of 0x7B:
+    cpu.a = readLsb(cpu.de)
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "LD A, E"
+  of 0x7C:
+    cpu.a = readMsb(cpu.hl)
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "LD A, H"
+  of 0x7D:
+    cpu.a = readLsb(cpu.hl)
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "LD A, L"
+  of 0x7E:
+    let value = cpu.mem.gameboy.readbyte(cpu.pc + 1)
+    cpu.a =  value
+    cpu.pc += 2
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "LD A, (HL) " & $toHex(value)
+  of 0x7F:
+    cpu.pc += 1
+    cpu.a =  cpu.a
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "LD A, A"
   of 0x80:
     cpu.pc += 1
     cpu.opAdd(readMsb(cpu.bc))
@@ -646,6 +1373,57 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.tClock = 16
     result.mClock = 4
     result.debugStr = "PUSH BC " & $toHex(cpu.sp) & " (" & $toHex(cpu.bc) & ")"
+  of 0xC6:
+    let byte = cpu.mem.gameboy.readbyte(cpu.pc + 1)
+    cpu.opAdd(byte)
+    cpu.pc += 2
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "ADD A " & $toHex(byte)
+  of 0xC7:
+    cpu.call()
+    cpu.pc = 0x00
+    result.tClock = 16
+    result.mClock = 4
+    result.debugStr = "RST 00"
+  of 0xCC:
+    var word: uint16
+    word = setMsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 1))
+    word = setLsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 2))
+    cpu.pc += 2 # We increment BEFORE we call. The RET should be the instruction AFTER this one.
+    if cpu.zFlag:
+      cpu.call()
+      cpu.pc = word
+      result.tClock = 24
+      result.mClock = 6
+      result.debugStr = "CALL Z, (" & $toHex(word) & ")"
+    else:
+      result.tClock = 12
+      result.mClock = 3
+      result.debugStr = "CALL Z, (missed)"
+  of 0xCD:
+    var word: uint16
+    word = setMsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 1))
+    word = setLsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 2))
+    cpu.pc += 2 # We increment BEFORE we call. The RET should be the instruction AFTER this one.
+    cpu.call()
+    cpu.pc = word
+    result.tClock = 24
+    result.mClock = 6
+    result.debugStr = "CALL (" & $toHex(word) & ")"
+  of 0xCE:
+    let byte = cpu.mem.gameboy.readbyte(cpu.pc + 1)
+    cpu.opAdc(byte)
+    cpu.pc += 2
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "ADC A " & $toHex(byte)
+  of 0xCF:
+    cpu.call()
+    cpu.pc = 0x08
+    result.tClock = 16
+    result.mClock = 4
+    result.debugStr = "RST 08"
   of 0xD5:
     cpu.pc += 1
     cpu.sp -= 1
@@ -655,6 +1433,47 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.tClock = 16
     result.mClock = 4
     result.debugStr = "PUSH DE " & $toHex(cpu.sp) & " (" & $toHex(cpu.de) & ")"
+  of 0xD6:
+    let byte = cpu.mem.gameboy.readbyte(cpu.pc + 1)
+    cpu.opSub(byte)
+    cpu.pc += 2
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "SUB A " & $toHex(byte)
+  of 0xD7:
+    cpu.call()
+    cpu.pc = 0x10
+    result.tClock = 16
+    result.mClock = 4
+    result.debugStr = "RST 10"
+  of 0xDC:
+    var word: uint16
+    word = setMsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 1))
+    word = setLsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 2))
+    cpu.pc += 2 # We increment BEFORE we call. The RET should be the instruction AFTER this one.
+    if cpu.cFlag:
+      cpu.call()
+      cpu.pc = word
+      result.tClock = 24
+      result.mClock = 6
+      result.debugStr = "CALL C, (" & $toHex(word) & ")"
+    else:
+      result.tClock = 12
+      result.mClock = 3
+      result.debugStr = "CALL C, (missed)"
+  of 0xDE:
+    let byte = cpu.mem.gameboy.readbyte(cpu.pc + 1)
+    cpu.opSbc(byte)
+    cpu.pc += 2
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "SBC A " & $toHex(byte)
+  of 0xDF:
+    cpu.call()
+    cpu.pc = 0x18
+    result.tClock = 16
+    result.mClock = 4
+    result.debugStr = "RST 18"
   of 0xE0:
     var word = 0xFF00'u16
     word = bitOr(word, uint16(cpu.mem.gameboy.readbyte(cpu.pc + 1)))
@@ -672,6 +1491,32 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.tClock = 16
     result.mClock = 4
     result.debugStr = "PUSH HL " & $toHex(cpu.sp) & " (" & $toHex(cpu.hl) & ")"
+  of 0xE6:
+    let byte = cpu.mem.gameboy.readbyte(cpu.pc + 1)
+    cpu.opAnd(byte)
+    cpu.pc += 2
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "AND A " & $toHex(byte)
+  of 0xE7:
+    cpu.call()
+    cpu.pc = 0x10
+    result.tClock = 16
+    result.mClock = 4
+    result.debugStr = "RST 20"
+  of 0xEE:
+    let byte = cpu.mem.gameboy.readbyte(cpu.pc + 1)
+    cpu.opXor(byte)
+    cpu.pc += 2
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "XOR A " & $toHex(byte)
+  of 0xEF:
+    cpu.call()
+    cpu.pc = 0x28
+    result.tClock = 16
+    result.mClock = 4
+    result.debugStr = "RST 28"
   of 0xF0:
     var word = 0xFF00'u16
     word = bitOr(word, uint16(cpu.mem.gameboy.readbyte(cpu.pc + 1)))
@@ -696,28 +1541,42 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.tClock = 16
     result.mClock = 4
     result.debugStr = "PUSH AF " & $toHex(cpu.sp) & " (" & $toHex(cpu.a) & $toHex(cpu.f) & ")"
-  of 0xFE:
+  of 0xF6:
+    let byte = cpu.mem.gameboy.readbyte(cpu.pc + 1)
+    cpu.opOr(byte)
+    cpu.pc += 2
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "OR A " & $toHex(byte)
+  of 0xF7:
+    cpu.call()
+    cpu.pc = 0x10
+    result.tClock = 16
+    result.mClock = 4
+    result.debugStr = "RST 30"
+  of 0xFB:
     cpu.pc += 1
     cpu.eiPending = true # Interrupts are NOT immediately enabled!
     result.tClock = 4
     result.mClock = 1
     result.debugStr = "EI"
+  of 0xFE:
+    let byte = cpu.mem.gameboy.readbyte(cpu.pc + 1)
+    cpu.opCp(byte)
+    cpu.pc += 2
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "CP A " & $toHex(byte)
+  of 0xFF:
+    cpu.call()
+    cpu.pc = 0x38
+    result.tClock = 16
+    result.mClock = 4
+    result.debugStr = "RST 38"
   else:
     result.tClock = 0
     result.mClock = 0
     result.debugStr = "UNKNOWN OPCODE: " & $toHex(opcode)
-
-proc push(cpu: var CPU; address: uint16; value: uint8): void =
-  # Push onto the stack. This does NOT calculate any cycles for this.
-  cpu.mem.gameboy.writeByte(address, readLsb(cpu.pc))
-  cpu.sp -= 1
-  cpu.mem.gameboy.writeByte(address, readMsb(cpu.pc))
-
-proc call(cpu: var CPU; address: uint16): void =
-  # Push onto the stack. This does NOT calculate any cycles for this.
-  cpu.mem.gameboy.writeByte(address, readLsb(cpu.pc))
-  cpu.sp -= 1
-  cpu.mem.gameboy.writeByte(address, readMsb(cpu.pc))
 
 proc callInterrupt(cpu: var CPU; address: uint16; flagBit: uint8;): TickResult =
   # Processes the given interrupt. Note that the halt flag is cleared if it is set.
@@ -733,7 +1592,7 @@ proc callInterrupt(cpu: var CPU; address: uint16; flagBit: uint8;): TickResult =
   if cpu.ime:
     # Clear the interrupt that fired only. Interrupts are DISABLED here.
     cpu.ime = false
-    cpu.call(cpu.sp)
+    cpu.call()
     cpu.pc = address
     result.tClock += 20
     result.mClock += 5

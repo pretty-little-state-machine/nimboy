@@ -10,6 +10,7 @@ type
     osc*: uint8         # Internal Oscillator - Master Clock, only needs 8 bits, the Timer.div does the real work.
     intFlag*: uint8     # Interrupt Flags - 0xFF0F
     intEnable*: uint8   # Interrupt Enable Register - 0xFFFF
+    stopped*: bool       # STOP command affects other modules from CPU
 
   GameboyMode* = enum
     mgb, # Monochrome Gameboy - Original
