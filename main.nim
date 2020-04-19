@@ -48,8 +48,8 @@ proc main =
     #gbRenderer.present()
 
     tileMapRenderer.clear()
-    #tileMapRenderer.renderTileMap(gb.vpu)
-    tileMapRenderer.drawTestTile(gb.vpu)
+    tileMapRenderer.renderTileMap(gb.vpu)
+    #tileMapRenderer.drawTestTile(gb.vpu)
     tileMapRenderer.present()
 
     debug(gb, debugger)

@@ -244,7 +244,7 @@ proc draw(gameboy: Gameboy; debugger: Debugger) =
   stdout.resetAttributes()
   setCursorPos(3,38)
 
-proc parseCommand(gameboy: var Gameboy; input: string; debugger: var Debugger) = 
+proc parseCommand(gameboy: var Gameboy; input: string; debugger: var Debugger): void = 
   let args = input.split(' ')
   if "load" in args[0] and 2 == args.len:
     gameboy.cartridge.loadRomFile(args[1])
@@ -258,7 +258,7 @@ proc parseCommand(gameboy: var Gameboy; input: string; debugger: var Debugger) =
     if args.len > 1:
       for x in countup(1, parseint(args[1])):
         var r = gameboy.step()
-        if "BREAK" == r.debugStr:
+        if "BREAK!" == r.debugStr:
           debugger.history.add("!--BREAKPOINT--!")
           break
         else:
@@ -279,7 +279,7 @@ proc parseCommand(gameboy: var Gameboy; input: string; debugger: var Debugger) =
   else:
     discard
 
-proc debug*(gameboy: var Gameboy; debugger: var Debugger) = 
+proc debug*(gameboy: var Gameboy; debugger: var Debugger): void = 
   draw(gameboy, debugger)
   var input: string = readLine(stdin)
   parseCommand(gameboy, input, debugger)

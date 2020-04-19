@@ -67,6 +67,73 @@ proc hFlag(cpu: var CPU): bool =
 proc cFlag(cpu: var CPU): bool =
   return cpu.f.testBit(4)
 
+proc isAddHalfCarry(a: uint8; b: uint8): bool =
+  # Deterimines if bit4 was carried during addition
+  result = bitand(a.bitand(0xF) + b.bitand(0xF), 0x10) == 0x10
+
+proc isSubHalfCarry(a: uint8; b: uint8): bool =
+  # Deterimines if bit4 was carried during addition
+  result = bitand(a.bitand(0xF) - b.bitand(0xF), 0x10) == 0x10
+
+proc opOr(cpu: var CPU; value: uint8): void = 
+  # Executes an OR operation on the A Register
+  cpu.clearFlagC()
+  cpu.clearFlagN()
+  cpu.clearFlagH()
+  cpu.a = bitor(cpu.a, value)
+  if 0 == cpu.a: 
+    cpu.setFlagZ()
+  else:
+    cpu.clearFlagZ()
+
+proc opAnd(cpu: var CPU; value: uint8): void = 
+  # Executes an AND operation on the A Register
+  cpu.clearFlagC()
+  cpu.clearFlagN()
+  cpu.setFlagH()
+  cpu.a = bitand(cpu.a, value)
+  if 0 == cpu.a: 
+    cpu.setFlagZ()
+  else:
+    cpu.clearFlagZ()
+
+proc opXor(cpu: var CPU; value: uint8): void = 
+  # Executes a XOR operation on the A Register
+  cpu.clearFlagC()
+  cpu.clearFlagN()
+  cpu.clearFlagH()
+  cpu.a = bitxor(cpu.a, value)
+  if 0 == cpu.a: 
+    cpu.setFlagZ()
+  else:
+    cpu.clearFlagZ()
+
+proc opSub(cpu: var CPU; value: uint8): void = 
+  # Executes substration on the A Register
+  cpu.setFlagN()
+  if isSubHalfCarry(cpu.a, value):
+    cpu.setFlagH()
+  else:
+    cpu.clearFlagH()
+  cpu.a = cpu.a - value;
+  if 0 == cpu.a: 
+    cpu.setFlagZ()
+  else: 
+    cpu.clearFlagZ
+
+proc opCp(cpu: var CPU; value: uint8): void = 
+  # Compares A to value, this is essentially subtract with ignored results
+  let tmpA = cpu.a
+  cpu.setFlagN()
+  if isSubHalfCarry(tmpA, value):
+    cpu.setFlagH()
+  else:
+    cpu.clearFlagH()
+  if 0 == tmpA - value: 
+    cpu.setFlagZ()
+  else: 
+    cpu.clearFlagZ
+
 template toSigned(x: uint8): int8 = cast[int8](x)
 
 proc execute (cpu: var CPU; opcode: uint8): TickResult =
@@ -156,25 +223,275 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "LD A " & $toHex(cpu.a)
-  of 0xAF:
-    cpu.clearFlagC()
-    cpu.clearFlagN()
-    cpu.clearFlagH()
-    cpu.a = bitxor(cpu.a, cpu.a)
-    if 0 == cpu.a: 
-      cpu.setFlagZ()
-    else:
-      cpu.clearFlagZ()
+  of 0x90:
     cpu.pc += 1
+    cpu.opSub(readMsb(cpu.bc))
     result.tClock = 4
     result.mClock = 1
-    result.debugStr = "XOR A A"
+    result.debugStr = "SUB B"
+  of 0x91:
+    cpu.pc += 1
+    cpu.opSub(readLsb(cpu.bc))
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "SUB C"
+  of 0x92:
+    cpu.pc += 1
+    cpu.opSub(readMsb(cpu.de))
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "SUB D"
+  of 0x93:
+    cpu.pc += 1
+    cpu.opSub(readLsb(cpu.de))
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "SUB E"
+  of 0x94:
+    cpu.pc += 1
+    cpu.opSub(readMsb(cpu.hl))
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "SUB H"
+  of 0x95:
+    cpu.pc += 1
+    cpu.opSub(readLsb(cpu.hl))
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "SUB L"
+  of 0x96: 
+    let value = cpu.mem.gameboy.readbyte(cpu.pc + 1)
+    cpu.opSub(value)
+    cpu.pc += 2
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "SUB (HL)"  & $toHex(value)
+  of 0x97:
+    cpu.pc += 1
+    cpu.opSub(cpu.a)
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "SUB A"
+  of 0xA0:
+    cpu.pc += 1
+    cpu.opAnd(readMsb(cpu.bc))
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "AND B"
+  of 0xA1:
+    cpu.pc += 1
+    cpu.opAnd(readLsb(cpu.bc))
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "AND C"
+  of 0xA2:
+    cpu.pc += 1
+    cpu.opAnd(readMsb(cpu.de))
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "AND D"
+  of 0xA3:
+    cpu.pc += 1
+    cpu.opAnd(readLsb(cpu.de))
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "AND E"
+  of 0xA4:
+    cpu.pc += 1
+    cpu.opAnd(readMsb(cpu.hl))
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "AND H"
+  of 0xA5:
+    cpu.pc += 1
+    cpu.opAnd(readLsb(cpu.hl))
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "AND L"
+  of 0xA6: 
+    let value = cpu.mem.gameboy.readbyte(cpu.pc + 1)
+    cpu.opAnd(value)
+    cpu.pc += 2
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "AND (HL)"  & $toHex(value)
+  of 0xA7:
+    cpu.pc += 1
+    cpu.opAnd(cpu.a)
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "AND A"
+  of 0xA8:
+    cpu.pc += 1
+    cpu.opXor(readMsb(cpu.hl))
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "XOR B"
+  of 0xA9:
+    cpu.pc += 1
+    cpu.opXor(readLsb(cpu.bc))
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "XOR C"
+  of 0xAA:
+    cpu.pc += 1
+    cpu.opXor(readMsb(cpu.de))
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "XOR D"
+  of 0xAB:
+    cpu.pc += 1
+    cpu.opXor(readLsb(cpu.de))
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "XOR E"
+  of 0xAC:
+    cpu.pc += 1
+    cpu.opXor(readMsb(cpu.hl))
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "XOR H"
+  of 0xAD:
+    cpu.pc += 1
+    cpu.opXor(readLsb(cpu.hl))
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "XOR L"
+  of 0xAE: 
+    let value = cpu.mem.gameboy.readbyte(cpu.pc + 1)
+    cpu.opXor(value)
+    cpu.pc += 2
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "XOR (HL)"  & $toHex(value)
+  of 0xAF:
+    cpu.pc += 1
+    cpu.opXor(cpu.a)
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "XOR A"
+  of 0xB0:
+    cpu.pc += 1
+    cpu.opOr(readMsb(cpu.bc))
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "OR B"
+  of 0xB1:
+    cpu.pc += 1
+    cpu.opOr(readLsb(cpu.bc))
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "OR C"
+  of 0xB2:
+    cpu.pc += 1
+    cpu.opOr(readMsb(cpu.de))
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "OR D"
+  of 0xB3:
+    cpu.pc += 1
+    cpu.opOr(readLsb(cpu.de))
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "OR E"
+  of 0xB4:
+    cpu.pc += 1
+    cpu.opOr(readMsb(cpu.hl))
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "OR H"
+  of 0xB5:
+    cpu.pc += 1
+    cpu.opOr(readLsb(cpu.hl))
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "OR L"
+  of 0xB6: 
+    let value = cpu.mem.gameboy.readbyte(cpu.pc + 1)
+    cpu.opOr(value)
+    cpu.pc += 2
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "OR (HL)"  & $toHex(value)
+  of 0xB7:
+    cpu.pc += 1
+    cpu.opOr(cpu.a)
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "OR A"
+  of 0xB8:
+    cpu.pc += 1
+    cpu.opCp(readMsb(cpu.hl))
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "CP B"
+  of 0xB9:
+    cpu.pc += 1
+    cpu.opCp(readLsb(cpu.bc))
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "CP C"
+  of 0xBA:
+    cpu.pc += 1
+    cpu.opCp(readMsb(cpu.de))
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "CP D"
+  of 0xBB:
+    cpu.pc += 1
+    cpu.opCp(readLsb(cpu.de))
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "CP E"
+  of 0xBC:
+    cpu.pc += 1
+    cpu.opCp(readMsb(cpu.hl))
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "CP H"
+  of 0xBD:
+    cpu.pc += 1
+    cpu.opCp(readLsb(cpu.hl))
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "CP L"
+  of 0xBE: 
+    let value = cpu.mem.gameboy.readbyte(cpu.pc + 1)
+    cpu.opCp(value)
+    cpu.pc += 2
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "CP (HL)"  & $toHex(value)
+  of 0xBF:
+    cpu.pc += 1
+    cpu.opCp(cpu.a)
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "CP A"
   of 0xC3:
     let word = cpu.readWord(cpu.pc + 1)
     cpu.pc = word
     result.tClock = 16
     result.mClock = 4
     result.debugStr = "JP " & $toHex(word)
+  of 0xC5:
+    cpu.pc += 1
+    cpu.sp -= 1
+    cpu.mem.gameboy.writeByte(cpu.sp, readMsb(cpu.bc))
+    cpu.sp -= 1
+    cpu.mem.gameboy.writeByte(cpu.sp, readLsb(cpu.bc))
+    result.tClock = 16
+    result.mClock = 4
+    result.debugStr = "PUSH BC " & $toHex(cpu.sp) & " (" & $toHex(cpu.bc) & ")"
+  of 0xD5:
+    cpu.pc += 1
+    cpu.sp -= 1
+    cpu.mem.gameboy.writeByte(cpu.sp, readMsb(cpu.de))
+    cpu.sp -= 1
+    cpu.mem.gameboy.writeByte(cpu.sp, readLsb(cpu.de))
+    result.tClock = 16
+    result.mClock = 4
+    result.debugStr = "PUSH DE " & $toHex(cpu.sp) & " (" & $toHex(cpu.de) & ")"
   of 0xE0:
     var word = 0xFF00'u16
     word = bitOr(word, uint16(cpu.mem.gameboy.readbyte(cpu.pc + 1)))
@@ -183,6 +500,15 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.tClock = 12
     result.mClock = 3
     result.debugStr = "LD " & $toHex(word) & " A (" & $toHex(cpu.a) & ")"
+  of 0xE5:
+    cpu.pc += 1
+    cpu.sp -= 1
+    cpu.mem.gameboy.writeByte(cpu.sp, readMsb(cpu.hl))
+    cpu.sp -= 1
+    cpu.mem.gameboy.writeByte(cpu.sp, readLsb(cpu.hl))
+    result.tClock = 16
+    result.mClock = 4
+    result.debugStr = "PUSH HL " & $toHex(cpu.sp) & " (" & $toHex(cpu.hl) & ")"
   of 0xF0:
     var word = 0xFF00'u16
     word = bitOr(word, uint16(cpu.mem.gameboy.readbyte(cpu.pc + 1)))
@@ -198,6 +524,15 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.tClock = 4
     result.mClock = 1
     result.debugStr = "DI"
+  of 0xF5:
+    cpu.pc += 1
+    cpu.sp -= 1
+    cpu.mem.gameboy.writeByte(cpu.sp, cpu.a)
+    cpu.sp -= 1
+    cpu.mem.gameboy.writeByte(cpu.sp, cpu.f)
+    result.tClock = 16
+    result.mClock = 4
+    result.debugStr = "PUSH AF " & $toHex(cpu.sp) & " (" & $toHex(cpu.a) & $toHex(cpu.f) & ")"
   of 0xFE:
     cpu.pc += 1
     cpu.eiPending = true # Interrupts are NOT immediately enabled!
