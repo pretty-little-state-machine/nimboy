@@ -205,10 +205,79 @@ proc stepFifo(): void =
   # Construct 8 pixels of data - but NOT VPU pixels
 
 
-proc tickOam(vpu: VPU): void =
-  let x = 1
 
-proc tick*(renderer: RendererPtr; vpu: VPU) =
+proc readOamYCoord(vpu: VPU; spriteIdx: uint8): uint8 =
+  return vpu.oam[0x04 * spriteIdx]
+
+proc readOamXCoord(vpu: VPU; spriteIdx: uint8): uint8 =
+  return vpu.oam[0x04 * spriteIdx + 1]
+
+proc readOamTileNumber(vpu: VPU; spriteIdx: uint8): uint8 =
+  return vpu.oam[0x04 * spriteIdx + 2]
+
+proc readOamAttributes(vpu: VPU; spriteIdx: uint8): uint8 =
+  return vpu.oam[0x04 * spriteIdx + 3]
+
+proc tickOamSearch(vpu: var VPU): void =
+  # Executes the appropriate OAM Search based on cycle
+  # There are 40 sprites and the OAM may have up to 10 at a time.
+  # 
+  # The rules are:
+  #    - The sprite OAM.x coordinate can not be 0
+  #    - The current line we're drawing must be between the first 
+  #      and last line of the sprite (LY + 16 >= oam.y || LY + 16 < oam.y + h)
+  #
+  # Each cycle this is called is only capable of reading two of the 40 OAM entries
+
+  # CIRCUIT BREAKER - Flip the state machine if we're already done on previous tick
+  if 40 == vpu.oamClock:
+    vpu.oamClock = 0
+    vpu.mode = pixelTransfer
+    return
+  
+  let oamIdx = uint8(vpu.oamClock div 2) # Entry offset
+  for offset in countup(0'u8, 1'u8):
+    vpu.oamClock += 1
+    if (0 != vpu.readOamXCoord(oamIdx + offset) and
+      (vpu.ly + 16 >= vpu.readOamYCoord(oamIdx + offset)) and
+      (vpu.ly + 16) < vpu.readOamYCoord(oamIdx + offset)):
+      # Valid - Add to the allowed sprites on this scanline
+      vpu.oamBuffer[vpu.oamBufferIdx] = oamIdx + offset
+      vpu.oamBufferIdx += 1
+
+proc tickPixelTransfer(vpu: var VPU): void = 
+  if 160 == vpu.pixelTransferX:
+    vpu.ly += 1
+    vpu.mode = hBlank
+    vpu.pixelTransferX = 0
+  # TODO: Actually implement the FIFO register
+  vpu.pixelTransferX += 4
+
+proc tick*(vpu: var VPU) =
+  # Rollover per Video Cycle - End of VBLANK
+  if 17556 == vpu.clock: 
+    vpu.ly = 0
+    vpu.clock = 0
+    vpu.oamBufferIdx = 0
+    for x in vpu.oamBuffer.mitems: x = 0
+    vpu.mode = oamSearch
+  
+  if oamSearch == vpu.mode:
+    vpu.tickOamSearch()
+  
+  if pixelTransfer == vpu.mode:
+    vpu.tickPixelTransfer()
+
+  # End H-BLank every 114 cycles - This is the difference between 144 - (OAM + Pixel Transfer)
+  if (0 == vpu.clock mod 114 and vpu.mode == hBlank):
+    vpu.mode = oamSearch
+
+  # Override OAM Search if we hit VBlank
+  if (144 == vpu.ly):
+    vpu.mode = vBlank
+
+  vpu.clock += 1
+
   # Processes a tick from the system clock.
   # Note that the VPU is technically always clocking when turned on.
   # This is called Cpu.tCycles numbers of times.
@@ -256,7 +325,7 @@ proc tick*(renderer: RendererPtr; vpu: VPU) =
 #
 #
 # Thus this is how the modes work:
-#  
+#      |----------------------------114 Clocks-----------------------------|
 #      |----20 Clocks----|<-----43+ Clocks----->|<-------51- Clocks------->|
 # ___  +===================================================================+
 #  |   |                 |                      |                          |
@@ -273,4 +342,3 @@ proc tick*(renderer: RendererPtr; vpu: VPU) =
 #  10  |                           VBLANK                                  |
 # ---  +===================================================================+
 #
-  let x = 1

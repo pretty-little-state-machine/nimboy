@@ -60,12 +60,11 @@ type
 
   VPU* = object
     gb*: VPUGb
-    mode: uint8   # Modes 0 - 3 based on the current scanline / cycle period
     vRAMTileDataBank0*: array[0x180F, uint8] # Stored in 0x8000 - 0x97FF - 384 Tiles - This doesn't divide evenly.?????
     vRAMTileDataBank1*: array[0x180F, uint8] # Stored in 0x8000 - 0x97FF - 384 More Tiles - Color Gameboy Only
     vRAMBgMap1*: array[0x3FF, uint8] # Stored in 0x9800 - 0x9BFF VG Background TileMaps 1 - 32x32 Tile Background Map
     vRAMBgMap2*: array[0x3FF, uint8] # Stored in 0x9C00 - 0x9FFF VG Background TileMaps 2 - 32x32 Tile Background Map
-    oam*: array[0x9F, uint8] # Sprite Attribute Table - Object Attribute Memory
+    oam*: array[0x9F, uint8] # Sprite Attribute Table - Object Attribute Memory - 40 Sprites
     # LCD Stuff
     lcdc*: uint8  # 0xFF40 - LCD Control Reigster
     stat*: uint8  # 0xFF41 - LCD Interrupt Handling
@@ -93,6 +92,16 @@ type
     hdma3*: uint8 # 0xFF53 - New DMA Destination, High
     hdma4*: uint8 # 0xFF54 - New DMA Destination, Low
     hdma5*: uint8 # 0xFF55 - New DMA Length / Mode / Start
+    # INTERNAL USE
+    mode*: VPUMode
+    clock*: uint32 # Internal Clock
+    oamClock*: uint32 # Used by the OAM buffer internally
+    oamBufferIdx*: uint8 # OAM Buffer Index - Used between cycles for OAM detection
+    oamBuffer*: array[0x09, uint8] # Up to 10 visible sprites
+    pixelTransferX*: uint8 # Tmp for FIFO Register scanline tracking
 
   VPUGb* = ref object
     gameboy*: Gameboy
+
+  VPUMode* = enum
+    oamSearch, pixelTransfer, hBlank, vBlank
