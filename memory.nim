@@ -1,7 +1,7 @@
 import types
 import bitops
 import cartridge
-import sdl
+import ppu
 
 export types.CPUMemory
 
@@ -13,50 +13,50 @@ proc readByte*(gameboy: Gameboy, address: uint16): uint8 =
   if address < 0xC000:
     return gameboy.cartridge.readByte(address)
   if address < 0x9FFF:
-    return gameboy.vpu.readByte(address)
+    return gameboy.ppu.readByte(address)
   if 0xFF0F == address:
     return gameboy.intFlag
-  # VPU Allocations
+  # PPU Allocations
   if 0xFF40 == address:
-    return gameboy.vpu.lcdc
+    return gameboy.ppu.lcdc
   if 0xFF41 == address:
-    return gameboy.vpu.stat
+    return gameboy.ppu.stat
   if 0xFF42 == address:
-    return gameboy.vpu.scy
+    return gameboy.ppu.scy
   if 0xFF43 == address:
-    return gameboy.vpu.scx
+    return gameboy.ppu.scx
   if 0xFF44 == address:
-    return gameboy.vpu.ly
+    return gameboy.ppu.ly
   if 0xFF45 == address:
-    return gameboy.vpu.lyc
+    return gameboy.ppu.lyc
   if 0xFF46 == address:
-    return gameboy.vpu.dma
+    return gameboy.ppu.dma
   if 0xFF47 == address:
-    return gameboy.vpu.bgp
+    return gameboy.ppu.bgp
   if 0xFF48 == address:
-    return gameboy.vpu.obp0
+    return gameboy.ppu.obp0
   if 0xFF49 == address:
-    return gameboy.vpu.obp1
+    return gameboy.ppu.obp1
   if 0xFF4A == address:
-    return gameboy.vpu.wy
+    return gameboy.ppu.wy
   if 0xFF4B == address:
-    return gameboy.vpu.ly
+    return gameboy.ppu.ly
   if 0xFF51 == address:     # Gameboy Color Only
-    return gameboy.vpu.hdma1
+    return gameboy.ppu.hdma1
   if 0xFF52 == address:     # Gameboy Color Only
-    return gameboy.vpu.hdma2
+    return gameboy.ppu.hdma2
   if 0xFF53 == address:     # Gameboy Color Only
-    return gameboy.vpu.hdma3
+    return gameboy.ppu.hdma3
   if 0xFF54 == address:     # Gameboy Color Only
-    return gameboy.vpu.hdma4
+    return gameboy.ppu.hdma4
   if 0xFF55 == address:     # Gameboy Color Only
-    return gameboy.vpu.hdma5
+    return gameboy.ppu.hdma5
   if 0xFF68 == address:     # Gameboy Color Only
-    return gameboy.vpu.bgpi
+    return gameboy.ppu.bgpi
   if 0xFF69 == address:     # Gameboy Color Only
-    return gameboy.vpu.bgpd
+    return gameboy.ppu.bgpd
   if 0xFF6A == address:     # Gameboy Color Only
-    return gameboy.vpu.ocps
+    return gameboy.ppu.ocps
   # Global Interrupts Table
   if 0xFFFF == address:
     return gameboy.intEnable

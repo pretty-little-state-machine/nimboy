@@ -4,7 +4,7 @@ type
     cpu*: CPU
     gameboyMode*: GameboyMode
     cartridge*: Cartridge
-    vpu*: VPU
+    ppu*: PPU
     timer*: Timer
     internalRam: array[8*1024'u16, uint8] # Internal RAM ($C000-$DFFF, read-only echo at $E000 - $FE00)
     osc*: uint8         # Internal Oscillator - Master Clock, only needs 8 bits, the Timer.div does the real work.
@@ -58,8 +58,8 @@ type
     ramPage*: uint16
     writeEnabeld*: bool
 
-  VPU* = object
-    gb*: VPUGb
+  PPU* = object
+    gb*: PPUGb
     vRAMTileDataBank0*: array[0x180F, uint8] # Stored in 0x8000 - 0x97FF - 384 Tiles - This doesn't divide evenly.?????
     vRAMTileDataBank1*: array[0x180F, uint8] # Stored in 0x8000 - 0x97FF - 384 More Tiles - Color Gameboy Only
     vRAMBgMap1*: array[0x3FF, uint8] # Stored in 0x9800 - 0x9BFF VG Background TileMaps 1 - 32x32 Tile Background Map
@@ -93,15 +93,36 @@ type
     hdma4*: uint8 # 0xFF54 - New DMA Destination, Low
     hdma5*: uint8 # 0xFF55 - New DMA Length / Mode / Start
     # INTERNAL USE
-    mode*: VPUMode
+    mode*: PPUMode
     clock*: uint32 # Internal Clock
-    oamClock*: uint32 # Used by the OAM buffer internally
-    oamBufferIdx*: uint8 # OAM Buffer Index - Used between cycles for OAM detection
-    oamBuffer*: array[0x09, uint8] # Up to 10 visible sprites
-    pixelTransferX*: uint8 # Tmp for FIFO Register scanline tracking
+    oamBuffer*: OamBuffer # Used for OAM Detection on eac horizontal line
+    fifo*: PixelFIFO  # Internals used for pixel fetcher
 
-  VPUGb* = ref object
+  PPUGb* = ref object
     gameboy*: Gameboy
 
-  VPUMode* = enum
+  PPUMode* = enum
     oamSearch, pixelTransfer, hBlank, vBlank
+ 
+  OamBuffer* = object
+    data*: array[0x09, uint8] # Up to 10 visible sprites
+    idx*: uint8 # OAM Buffer Index - Keeps track of found sprites
+    clock*: uint32 # Internal OAM Buffer Clock - Counts up to 40 ticks then resets
+
+  PixelFIFO* = object
+    data*: array[16, PixelFifoEntry]
+    fetchMode*: fModeState
+    fetchAddress*: uint16
+    pixelTransferX*: uint8  # Counts up to 160 as X Coordinates are drawn
+
+  fModeState* = enum
+    fmsReadTile, fmsReadData0, fmsReadData1
+
+  PixelFIFOType* = enum
+    ftBackground, ftWindow, ftSprite0, ftSprite1
+
+  PixelFIFOEntry* = object
+    data*: array[16, uint8]   # Will only contain pallete references - 0b00 -> 0b11
+    fifoType*: PixelFIFOType  # Used to determine rules for mixing
+    priority*: uint8          # Used for sprite priority values - ignored for bg/window
+

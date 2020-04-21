@@ -219,11 +219,11 @@ proc drawInterrupts(gameboy: Gameboy) =
   setCursorPos(90,22)
   stdout.write("╰────────────────┤")
 
-proc drawVpuMode(vpu: VPU) =
+proc drawPpuMode(ppu: PPU) =
   setCursorPos(70, 3)
-  stdout.write($vpu.clock)
+  stdout.write($ppu.clock)
   setCursorPos(70, 4)
-  case vpu.mode
+  case ppu.mode
   of oamSearch:
     stdout.write("OAM Search")
   of pixelTransfer:
@@ -234,22 +234,22 @@ proc drawVpuMode(vpu: VPU) =
     stdout.write("V-Blank")
 
   setCursorPos(70,5)
-  stdout.write(" LY: " & $vpu.ly)
+  stdout.write(" LY: " & $ppu.ly)
   setCursorPos(70,6)
-  stdout.write("SCX: " & $vpu.scx)
+  stdout.write("SCX: " & $ppu.scx)
   setCursorPos(70,7)
-  stdout.write("SCY: " & $vpu.scy)
+  stdout.write("SCY: " & $ppu.scy)
   setCursorPos(70,8)
-  stdout.write(" WX: " & $vpu.wx)
+  stdout.write(" WX: " & $ppu.wx)
   setCursorPos(70,9)
-  stdout.write(" WY: " & $vpu.wy)
+  stdout.write(" WY: " & $ppu.wy)
   
 proc draw(gameboy: Gameboy; debugger: Debugger) =
   drawCliTables()
   drawCpu(gameboy.cpu)
   drawTitle(gameboy.cartridge)
   drawInterrupts(gameboy)
-  drawVpuMode(gameboy.vpu)
+  drawPpuMode(gameboy.ppu)
   # OPCode Decoder
   var i = 0
   for x in countdown(debugger.history.len, debugger.history.len - 30):
