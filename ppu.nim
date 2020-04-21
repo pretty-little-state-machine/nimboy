@@ -147,14 +147,45 @@ proc tickOamSearch(ppu: var PPU): void =
       ppu.oamBuffer.data[ppu.oamBuffer.idx] = oamIdx + offset
       ppu.oamBuffer.idx += 1
 
+proc resetFetch(fetch: var Fetch): void =
+  # Resets the fetch operation. Hit on window changes or sprite loads
+  fetch.tick = 1
+  fetch.mode = fmsReadTile
+
+proc fetch(fetch: var Fetch): void =
+  # Executes a fetch operation.
+  # The fetch is running at 2Mhz so it only does something every other tick.
+  # This increments and fast returns if we're only on the first tick.
+  if 1 == fetch.tick:
+    fetch.tick += 1
+    return 
+
+  # TODO: Actually make the fetcher DO something.
+
+  # Increment the state machine
+  if fmsReadTile == fetch.mode: fetch.mode = fmsReadData0
+  if fmsReadData0 == fetch.mode: fetch.mode = fmsReadData1
+  if fmsReadData1 == fetch.mode: fetch.mode = fmsIdle
+  if fmsIdle == fetch.mode: fetch.resetFetch() # Reset the state machine
 
 proc tickPixelTransfer(ppu: var PPU): void = 
+  # Reset the PPU and aport
   if 160 == ppu.fifo.pixelTransferX:
     ppu.ly += 1
     ppu.mode = hBlank
     ppu.fifo.pixelTransferX = 0
-  # TODO: Actually implement the FIFO register
-  ppu.fifo.pixelTransferX += 4
+    ppu.fifo.queueDepth = 0
+    return
+
+  if ppu.fifo.queueDepth >= 8:
+    # Mix Pixels - Up to 10 cycles based on OAM Buffer
+    for i in countup(1'u8, ppu.oamBuffer.idx):
+      # Determine which entry wins and replace values in FIFO
+      # Decode Palette
+      break
+    # Push Pixel to LCD Display
+    ppu.fifo.queueDepth -= 1
+    ppu.fifo.pixelTransferX += 1
 
 proc tick*(ppu: var PPU) =
   # Processes a tick based on the system clock.
@@ -174,8 +205,14 @@ proc tick*(ppu: var PPU) =
 
   # End H-BLank every 114 cycles - This is the difference between 144 - (OAM + Pixel Transfer)
   if (0 == ppu.clock mod 114 and ppu.mode == hBlank):
-    ppu.mode = oamSearch
-
+    ppu.mode = oamSearch # Update state machine
+    # Update any requested values for window / scroll / Lyc
+    ppu.scy = ppu.requestedScy
+    ppu.scx = ppu.requestedScx
+    ppu.lyc = ppu.requestedLyc
+    ppu.wy = ppu.requestedWy
+    ppu.wx = ppu.requestedWx
+    
   # Override OAM Search if we hit VBlank
   if (144 == ppu.ly):
     ppu.mode = vBlank

@@ -93,10 +93,16 @@ type
     hdma4*: uint8 # 0xFF54 - New DMA Destination, Low
     hdma5*: uint8 # 0xFF55 - New DMA Length / Mode / Start
     # INTERNAL USE
+    requestedScy*: uint8  # This can be written to at any time but ONLY takes effect until HBLANK
+    requestedScx*: uint8  # This can be written to at any time but ONLY takes effect until HBLANK
+    requestedLyc*: uint8  # This can be written to at any time but ONLY takes effect until HBLANK
+    requestedWy*: uint8   # This can be written to at any time but ONLY takes effect until HBLANK
+    requestedWx*: uint8   # This can be written to at any time but ONLY takes effect until HBLANK
     mode*: PPUMode
     clock*: uint32 # Internal Clock
     oamBuffer*: OamBuffer # Used for OAM Detection on eac horizontal line
-    fifo*: PixelFIFO  # Internals used for pixel fetcher
+    fetch*: Fetch     # OAM Data and sprite data fetcher - Populates the FIFO
+    fifo*: PixelFIFO  # Internals used for pixel rendering
 
   PPUGb* = ref object
     gameboy*: Gameboy
@@ -109,20 +115,26 @@ type
     idx*: uint8 # OAM Buffer Index - Keeps track of found sprites
     clock*: uint32 # Internal OAM Buffer Clock - Counts up to 40 ticks then resets
 
+  Fetch* = object
+    data*: uint8          # Data destined for the FIFO queue
+    mode*: fModeState     # Mode of the fetcher
+    tick*: uint8          # Fetch takes two ticks so that is tracked here.
+    address*: uint16      # Address that is being fetched
+    entity*: FetchEntity  # Type of data to be fetched
+    
   PixelFIFO* = object
-    data*: array[16, PixelFifoEntry]
-    fetchMode*: fModeState
-    fetchAddress*: uint16
+    data*: array[16, PixelFifoEntry] # The FIFO queue itself
+    queueDepth*: uint8      # Number of current entries in the queue
     pixelTransferX*: uint8  # Counts up to 160 as X Coordinates are drawn
 
   fModeState* = enum
-    fmsReadTile, fmsReadData0, fmsReadData1
+    fmsReadTile, fmsReadData0, fmsReadData1, fmsIdle
 
-  PixelFIFOType* = enum
-    ftBackground, ftWindow, ftSprite0, ftSprite1
+  FetchEntity* = enum
+    ftBackground, ftWindow, ftSprite0, ftSprite1 # Used to determine the pixel mixing
 
   PixelFIFOEntry* = object
-    data*: array[16, uint8]   # Will only contain pallete references - 0b00 -> 0b11
-    fifoType*: PixelFIFOType  # Used to determine rules for mixing
-    priority*: uint8          # Used for sprite priority values - ignored for bg/window
+    data*: array[8, uint8]  # Will only contain pallete references - 0b00 -> 0b11
+    entity*: FetchEntity    # Used to determine rules for mixing
+    priority*: uint8        # Used for sprite priority values - ignored for bg/window
 
