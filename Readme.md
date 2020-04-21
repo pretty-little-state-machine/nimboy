@@ -50,14 +50,15 @@ The following are very useful for learning about the gameboy. Note that
 many documents disagree with each other. It's up to you to find the 
 "truth" of the Gameboy!
 
-[https://www.youtube.com/watch?v=HyzD8pNlpwI](The _ultimate_ Gameboy Talk - Required watching!)
+[The _ultimate_ Gameboy Talk - Required watching!](https://www.youtube.com/watch?v=HyzD8pNlpwI])
 
-[https://gbdev.io/gb-opcodes/optables/](Gameboy CPU SM83 Instruction Set)
+[Gameboy CPU SM83 Instruction Set](https://gbdev.io/gb-opcodes/optables/)
 
-[https://gbdev.io/pandocs/](Pan Docs - "The single, most comprehensive technical reference to Game Boy available to the public.")
+[Pan Docs - "The single, most comprehensive technical reference to Game Boy available to the public."](https://gbdev.io/pandocs/)
 
-[https://github.com/retrio/gb-test-roms](Blargg's Gameboy Hardware Test ROMs)
+[Blargg's Gameboy Hardware Test ROMs](https://github.com/retrio/gb-test-roms)
 
-[https://gekkio.fi/files/gb-docs/gbctr.pdf](Game Boy: Complete Technical Reference)
+[Game Boy: Complete Technical Reference](https://gekkio.fi/files/gb-docs/gbctr.pdf)
 
-[http://marc.rawer.de/Gameboy/Docs/GBCPUman.pdf](Gameboy CPU Manual - Use with care, I've been read there are mistakes)
+[Gameboy CPU Manual - Use with care, I've been read there are mistakes](http://marc.rawer.de/Gameboy/Docs/GBCPUman.pdf)
+
