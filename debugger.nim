@@ -219,15 +219,37 @@ proc drawInterrupts(gameboy: Gameboy) =
   setCursorPos(90,22)
   stdout.write("╰────────────────┤")
 
-proc drawTimerDetails(timer: Timer) =
-  setCursorPos(73,24)
-  stdout.write("╰────────────────┤")
+proc drawPpuMode(ppu: PPU) =
+  setCursorPos(70, 3)
+  stdout.write($ppu.clock)
+  setCursorPos(70, 4)
+  case ppu.mode
+  of oamSearch:
+    stdout.write("OAM Search")
+  of pixelTransfer:
+    stdout.write("Pixel Transfer")
+  of hBlank:
+    stdout.write("H-Blank")
+  of vBlank:
+    stdout.write("V-Blank")
 
+  setCursorPos(70,5)
+  stdout.write(" LY: " & $ppu.ly)
+  setCursorPos(70,6)
+  stdout.write("SCX: " & $ppu.scx)
+  setCursorPos(70,7)
+  stdout.write("SCY: " & $ppu.scy)
+  setCursorPos(70,8)
+  stdout.write(" WX: " & $ppu.wx)
+  setCursorPos(70,9)
+  stdout.write(" WY: " & $ppu.wy)
+  
 proc draw(gameboy: Gameboy; debugger: Debugger) =
   drawCliTables()
   drawCpu(gameboy.cpu)
   drawTitle(gameboy.cartridge)
   drawInterrupts(gameboy)
+  drawPpuMode(gameboy.ppu)
   # OPCode Decoder
   var i = 0
   for x in countdown(debugger.history.len, debugger.history.len - 30):
@@ -284,7 +306,6 @@ proc debug*(gameboy: var Gameboy; debugger: var Debugger): void =
   var input: string = readLine(stdin)
   parseCommand(gameboy, input, debugger)
   draw(gameboy, debugger)
-
 
 proc newDebugger*(): Debugger = 
   new result

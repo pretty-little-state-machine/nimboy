@@ -4,7 +4,7 @@ type
     cpu*: CPU
     gameboyMode*: GameboyMode
     cartridge*: Cartridge
-    vpu*: VPU
+    ppu*: PPU
     timer*: Timer
     internalRam: array[8*1024'u16, uint8] # Internal RAM ($C000-$DFFF, read-only echo at $E000 - $FE00)
     osc*: uint8         # Internal Oscillator - Master Clock, only needs 8 bits, the Timer.div does the real work.
@@ -58,14 +58,13 @@ type
     ramPage*: uint16
     writeEnabeld*: bool
 
-  VPU* = object
-    gb*: VPUGb
-    mode: uint8   # Modes 0 - 3 based on the current scanline / cycle period
+  PPU* = object
+    gb*: PPUGb
     vRAMTileDataBank0*: array[0x180F, uint8] # Stored in 0x8000 - 0x97FF - 384 Tiles - This doesn't divide evenly.?????
     vRAMTileDataBank1*: array[0x180F, uint8] # Stored in 0x8000 - 0x97FF - 384 More Tiles - Color Gameboy Only
-    vRAMBgMap1*: array[0x3FF, uint8] # VG Background TileMaps 1 - 32x32 Tile Background Map
-    vRAMBgMap2*: array[0x3FF, uint8] # VG Background TileMaps 2 - 32x32 Tile Background Map
-    oam*: array[0x9F, uint8] # Sprite Attribute Table - Object Attribute Memory
+    vRAMBgMap1*: array[0x3FF, uint8] # Stored in 0x9800 - 0x9BFF VG Background TileMaps 1 - 32x32 Tile Background Map
+    vRAMBgMap2*: array[0x3FF, uint8] # Stored in 0x9C00 - 0x9FFF VG Background TileMaps 2 - 32x32 Tile Background Map
+    oam*: array[0x9F, uint8] # Sprite Attribute Table - Object Attribute Memory - 40 Sprites
     # LCD Stuff
     lcdc*: uint8  # 0xFF40 - LCD Control Reigster
     stat*: uint8  # 0xFF41 - LCD Interrupt Handling
@@ -77,20 +76,65 @@ type
     wx*: uint8    # 0xFF4B - Window X Position (R/W) - Minus 7?
     # Monochrome Gameboy Palettes
     bgp*: uint8   # 0xFF47 - BG Pallete Data (R/W) 
-    obp1*: uint8  # 0xFF48 - Object Palette 0 Data (R/W)
-    obp2*: uint8  # 0xFF49 - Object Palette 1 Data (R/W)
+    obp0*: uint8  # 0xFF48 - Object Palette 0 Data (R/W)
+    obp1*: uint8  # 0xFF49 - Object Palette 1 Data (R/W)
     # Color Gameboy Palettes
     bgpi*: uint8  # 0xFF68 - Background Palette Index
     bgpd*: uint8  # 0xFF69 - Background Palette Data
     ocps*: uint8  # 0xFF6A - Sprite Palette Index
     ocpd*: uint8  # 0xFF6B - Sprite Palette Data
     vbk*: uint8   # 0xFF4F - VRAM Bank
+    # DMA Request
+    dma*: uint8   # 0xFF46 - DMA Transfer and Start Address
     # LCD VRAM DMA - Color Gameboy Only
     hdma1*: uint8 # 0xFF51 - New DMA Source, High
     hdma2*: uint8 # 0xFF52 - New DMA Source, Low
     hdma3*: uint8 # 0xFF53 - New DMA Destination, High
     hdma4*: uint8 # 0xFF54 - New DMA Destination, Low
     hdma5*: uint8 # 0xFF55 - New DMA Length / Mode / Start
+    # INTERNAL USE
+    requestedScy*: uint8  # This can be written to at any time but ONLY takes effect until HBLANK
+    requestedScx*: uint8  # This can be written to at any time but ONLY takes effect until HBLANK
+    requestedLyc*: uint8  # This can be written to at any time but ONLY takes effect until HBLANK
+    requestedWy*: uint8   # This can be written to at any time but ONLY takes effect until HBLANK
+    requestedWx*: uint8   # This can be written to at any time but ONLY takes effect until HBLANK
+    mode*: PPUMode
+    clock*: uint32 # Internal Clock
+    oamBuffer*: OamBuffer # Used for OAM Detection on eac horizontal line
+    fetch*: Fetch     # OAM Data and sprite data fetcher - Populates the FIFO
+    fifo*: PixelFIFO  # Internals used for pixel rendering
 
-  VPUGb* = ref object
+  PPUGb* = ref object
     gameboy*: Gameboy
+
+  PPUMode* = enum
+    oamSearch, pixelTransfer, hBlank, vBlank
+ 
+  OamBuffer* = object
+    data*: array[0x09, uint8] # Up to 10 visible sprites
+    idx*: uint8 # OAM Buffer Index - Keeps track of found sprites
+    clock*: uint32 # Internal OAM Buffer Clock - Counts up to 40 ticks then resets
+
+  Fetch* = object
+    data*: uint8          # Data destined for the FIFO queue
+    mode*: fModeState     # Mode of the fetcher
+    tick*: uint8          # Fetch takes two ticks so that is tracked here.
+    address*: uint16      # Address that is being fetched
+    entity*: FetchEntity  # Type of data to be fetched
+    
+  PixelFIFO* = object
+    data*: array[16, PixelFifoEntry] # The FIFO queue itself
+    queueDepth*: uint8      # Number of current entries in the queue
+    pixelTransferX*: uint8  # Counts up to 160 as X Coordinates are drawn
+
+  fModeState* = enum
+    fmsReadTile, fmsReadData0, fmsReadData1, fmsIdle
+
+  FetchEntity* = enum
+    ftBackground, ftWindow, ftSprite0, ftSprite1 # Used to determine the pixel mixing
+
+  PixelFIFOEntry* = object
+    data*: array[8, uint8]  # Will only contain pallete references - 0b00 -> 0b11
+    entity*: FetchEntity    # Used to determine rules for mixing
+    priority*: uint8        # Used for sprite priority values - ignored for bg/window
+

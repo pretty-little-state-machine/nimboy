@@ -1,22 +1,65 @@
 import types
 import bitops
 import cartridge
+import ppu
 
 export types.CPUMemory
 
 proc readByte*(gameboy: Gameboy, address: uint16): uint8 =
   if address < 0x8000:
-      return gameboy.cartridge.readByte(address)
+    return gameboy.cartridge.readByte(address)
   if address < 0xA000:
-      #debugEcho("MEMREAD: ", $toHex(address), " : Video RAM")
-      return 1
+    return 1
   if address < 0xC000:
-      return gameboy.cartridge.readByte(address)
+    return gameboy.cartridge.readByte(address)
+  if address < 0x9FFF:
+    return gameboy.ppu.readByte(address)
   if 0xFF0F == address:
     return gameboy.intFlag
+  # PPU Allocations
+  if 0xFF40 == address:
+    return gameboy.ppu.lcdc
+  if 0xFF41 == address:
+    return gameboy.ppu.stat
+  if 0xFF42 == address:
+    return gameboy.ppu.scy
+  if 0xFF43 == address:
+    return gameboy.ppu.scx
+  if 0xFF44 == address:
+    return gameboy.ppu.ly
+  if 0xFF45 == address:
+    return gameboy.ppu.lyc
+  if 0xFF46 == address:
+    return gameboy.ppu.dma
+  if 0xFF47 == address:
+    return gameboy.ppu.bgp
+  if 0xFF48 == address:
+    return gameboy.ppu.obp0
+  if 0xFF49 == address:
+    return gameboy.ppu.obp1
+  if 0xFF4A == address:
+    return gameboy.ppu.wy
+  if 0xFF4B == address:
+    return gameboy.ppu.wx
+  if 0xFF51 == address:     # Gameboy Color Only
+    return gameboy.ppu.hdma1
+  if 0xFF52 == address:     # Gameboy Color Only
+    return gameboy.ppu.hdma2
+  if 0xFF53 == address:     # Gameboy Color Only
+    return gameboy.ppu.hdma3
+  if 0xFF54 == address:     # Gameboy Color Only
+    return gameboy.ppu.hdma4
+  if 0xFF55 == address:     # Gameboy Color Only
+    return gameboy.ppu.hdma5
+  if 0xFF68 == address:     # Gameboy Color Only
+    return gameboy.ppu.bgpi
+  if 0xFF69 == address:     # Gameboy Color Only
+    return gameboy.ppu.bgpd
+  if 0xFF6A == address:     # Gameboy Color Only
+    return gameboy.ppu.ocps
+  # Global Interrupts Table
   if 0xFFFF == address:
     return gameboy.intEnable
-  return 0 # Undefined Address
 
 proc writeByte*(gameboy: Gameboy; address: uint16; value: uint8): void =
   if address < 0x8000:
@@ -25,8 +68,50 @@ proc writeByte*(gameboy: Gameboy; address: uint16; value: uint8): void =
       discard
   if address < 0xC000:
     gameboy.cartridge.writeByte(address, value)
+  #if address < 0x9FFF:
+    # TODO
+    #gameboy.ppu.writeByte(address, value)
   if 0xFF0F == address:
     gameboy.intFlag = value
+  # PPU Allocations
+  if 0xFF40 == address:
+    gameboy.ppu.lcdc = value
+  if 0xFF41 == address:
+    gameboy.ppu.stat = value
+  if 0xFF42 == address:
+    gameboy.ppu.requestedScy = value
+  if 0xFF43 == address:
+    gameboy.ppu.requestedScx = value
+  if 0xFF45 == address:
+    gameboy.ppu.requestedLyc = value
+  if 0xFF46 == address:
+    gameboy.ppu.dma = value
+  if 0xFF47 == address:
+    gameboy.ppu.bgp = value
+  if 0xFF48 == address:
+    gameboy.ppu.obp0 = value
+  if 0xFF49 == address:
+    gameboy.ppu.obp1 = value
+  if 0xFF4A == address:
+    gameboy.ppu.requestedWy = value
+  if 0xFF4B == address:
+    gameboy.ppu.requestedWx = value
+  if 0xFF51 == address:     # Gameboy Color Only
+    gameboy.ppu.hdma1 = value
+  if 0xFF52 == address:     # Gameboy Color Only
+    gameboy.ppu.hdma2 = value
+  if 0xFF53 == address:     # Gameboy Color Only
+    gameboy.ppu.hdma3 = value
+  if 0xFF54 == address:     # Gameboy Color Only
+    gameboy.ppu.hdma4 = value
+  if 0xFF55 == address:     # Gameboy Color Only
+    gameboy.ppu.hdma5 = value
+  if 0xFF68 == address:     # Gameboy Color Only
+    gameboy.ppu.bgpi = value
+  if 0xFF69 == address:     # Gameboy Color Only
+    gameboy.ppu.bgpd = value
+  if 0xFF6A == address:     # Gameboy Color Only
+    gameboy.ppu.ocps = value
   if 0xFFFF == address:
     gameboy.intEnable = value
 

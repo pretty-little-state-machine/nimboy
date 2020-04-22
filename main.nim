@@ -1,10 +1,9 @@
 # Nimboy imports
 import debugger
 import gameboy
-
 import sdl2
 import os
-import sdl
+import ppu
 
 type SDLException = object of Exception
 
@@ -36,7 +35,7 @@ proc getRenderer(title: string; width: cint; height: cint): RendererPtr =
 
 proc main =
   #let gbRenderer = getRenderer("Nimboy", 160,144)
-  let tileMapRenderer = getRenderer("Tile Data", 256, 256) # 192 for all sprites
+  #let tileMapRenderer = getRenderer("Tile Data", 256, 256) # 192 for all sprites
 
   # Game loop, draws each frame
   var gb = newGameboy()
@@ -47,11 +46,10 @@ proc main =
     #gbRenderer.step(gb.vpu)
     #gbRenderer.present()
 
-    tileMapRenderer.clear()
-    tileMapRenderer.renderTileMap(gb.vpu)
+    #tileMapRenderer.clear()
+    #tileMapRenderer.renderTileMap(gb.vpu)
     #tileMapRenderer.drawTestTile(gb.vpu)
-    tileMapRenderer.present()
-
+    #tileMapRenderer.present()
     debug(gb, debugger)
 
 main()
