@@ -13,6 +13,21 @@ drastically increases the difficulty of the system.
 
 ![NimBoy Block Diagram](nimboy.png)
 
+## Debugger
+
+There's a very limited debugger at the moment. Debugger will match
+on the first part of a string if a small string is shown. __Optional__
+parameters are prefixed with a question mark.
+
+**Example:** `step 888` is the same as `st 888` and `st` will be listed below.
+
+- **load <string>** - Loads a rom. There is none in source control
+- **st <?NumSteps>** - Issues the number of steps in opcode execution or a single step if arugment is empty.
+- **bp <###>** - Sets a breakpoint. NOTE: This assumes the input is hex and NOT prefixed with `0x`
+- **tf <z|n|c|h>** - Toggles a flag on or off.
+
+![NimBoy Block Diagram](debugger.png)
+
 ## Memory Controller
 Gameboys utilize memory-mapped IO and interfaces to other modules.
 `memory.nim` serves as an interface to the CPU / other components
