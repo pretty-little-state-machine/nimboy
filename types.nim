@@ -93,6 +93,7 @@ type
     hdma4*: uint8 # 0xFF54 - New DMA Destination, Low
     hdma5*: uint8 # 0xFF55 - New DMA Length / Mode / Start
     # INTERNAL USE
+    outputBuffer*: array[0x5A00, PixelFIFOEntry] # 23,040 Output "Pixels"
     requestedScy*: uint8  # This can be written to at any time but ONLY takes effect until HBLANK
     requestedScx*: uint8  # This can be written to at any time but ONLY takes effect until HBLANK
     requestedLyc*: uint8  # This can be written to at any time but ONLY takes effect until HBLANK
@@ -137,6 +138,4 @@ type
 
   PixelFIFOEntry* = object
     data*: array[8, uint8]  # Will only contain pallete references - 0b00 -> 0b11
-    entity*: FetchEntity    # Used to determine rules for mixing
-    priority*: uint8        # Used for sprite priority values - ignored for bg/window
-
+    entity*: FetchEntity    # Used to determine rules for mixing and palette lookups

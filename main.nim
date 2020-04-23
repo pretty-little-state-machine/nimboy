@@ -21,6 +21,7 @@ proc main =
   # Preload tetris
   gb.cartridge.loadRomFile("roms/tetris.gb")
 
+  gb.ppu.fillTestTiles()
   while running:
     #sleep(100)
     #gbRenderer.clear()
@@ -36,8 +37,8 @@ proc main =
     if 0 == tmp mod 512:
       echo gb.step().debugStr
       tileMapRenderer.clear()
-      tileMapRenderer.renderMgbTileMap(gb.ppu)
-      #tileMapRenderer.drawTestTile(gb.ppu)
+      #tileMapRenderer.renderMgbTileMap(gb.ppu)
+      tileMapRenderer.drawTestTile(gb.ppu)
       tileMapRenderer.present()
     else:
       discard gb.step().debugStr

@@ -127,7 +127,7 @@ proc renderMgbTileMap*(renderer: RendererPtr; ppu: PPU) =
 
   # Bank 0
   var xOffset = 0
-  var yOffset = 4 # Leave room for swatch overlay, which is 4 tiles high
+  var yOffset = 10 # Leave room for swatch overlay, which is 4 tiles high
   for tileOffset in countup(0, 0x17F0, 0xF):
     var twoBB: TwoBB
     for b in countup(0'u16, 0xF):
@@ -172,5 +172,14 @@ proc drawTestTile*(renderer: RendererPtr; ppu: PPU): void =
   for b in countup(0'u16, 0xF): 
     twoBB[b] = tmp[b]
   var tile = twoBB.decode2bbTile()
-  debugBuffer.drawTile(tile, palette, 0, 0)
+  debugBuffer.drawTile(tile, palette, 1, 0)
   renderer.render(debugBuffer)
+
+proc fillTestTiles*(ppu: var PPU): void = 
+  # Fills the PPU Sprite memory with a single test sprite over and over
+  ppu.bgp = 0x1B'u8 # Fake testing one - 4 colours
+  var tmp = [0xFF'u8, 0x00, 0x7E, 0xFF, 0x85, 0x81, 0x89, 0x83, 0x93, 0x85, 0xA5, 0x8B, 0xC9, 0x97, 0x7E, 0xFF]
+  for tileOffset in countup(0, 0x17F0, 0xF):
+    for b in countup(0'u16, 0xF): 
+       ppu.vRAMTileDataBank0[uint16(tileOffset) + b] = tmp[b]
+

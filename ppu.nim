@@ -7,19 +7,12 @@
 # 
 # And read this: http://blog.kevtris.org/blogfiles/Nitty%20Gritty%20Gameboy%20VRAM%20Timing.txt
 #
-# Step - (Public Proc)
-#  |> Draw Background (PpuBuffer)
-#  |> Overlay Window  (PpuBuffer)
-#  |> Draw Sprites    (PpuBuffer)
-#  |> Render          (SDL2 RendererPtr Draw Calls)          
-#
-# This allows us to perform all our scaling or 2x2 SuperEagle interpolation or
-# whatever we want to do all at once instead of in the tile drawing routines.
-#
-# The PpuBuffer itself is very large as it might be holding debugger maps. 
-# Since the gameboy screen itself won't be using the entire thing the object
-# has a `used` field that will represent the actual consumed lenght for the 
-# renderer to function on.
+# The PPU will populate an array of palette lookups as pixels along with the data
+# for the palette to use. The PPU will handle priority, the SDL rendering engine
+# will not any "PPU logic" other than decoding the color space from the palettes.
+# 
+# See the PixelFIFOEntry type defintion to see what goes to the SDL rendering 
+# (or whatever else) that is used.
 #
 import system
 import bitops
@@ -141,6 +134,7 @@ proc tickPixelTransfer(ppu: var PPU): void =
       # Decode Palette
       #break
     # Push Pixel to LCD Display
+    ppu.outputBuffer[(ppu.ly * 144) + ppu.fifo.pixelTransferX] = ppu.fifo.data[0]
     ppu.fifo.queueDepth -= 1
     ppu.fifo.pixelTransferX += 1
 
@@ -152,6 +146,11 @@ proc tickPixelTransfer(ppu: var PPU): void =
     ppu.fetch.canRun = false
 
   if true == ppu.fetch.idle and ppu.fifo.queueDepth <= 8:
+    for x in countup(0x0, 0x7):
+      var pfe: PixelFIFOEntry
+      pfe.data = ppu.fetch.data
+      pfe.entity = ppu.fetch.entity
+      ppu.fifo.data[x + 0x8] = pfe
     ppu.fifo.queueDepth += 8
     ppu.fetch.resetFetch() # Pull the data out of the fetch
 
