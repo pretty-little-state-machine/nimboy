@@ -127,8 +127,8 @@ proc renderMgbTileMap*(renderer: RendererPtr; ppu: PPU) =
 
   # Bank 0
   var xOffset = 0
-  var yOffset = 6 # Leave room for swatch overlay, which is 4 tiles high
-  for tileOffset in countup(0, 0x17FF, 0xF):
+  var yOffset = 4 # Leave room for swatch overlay, which is 4 tiles high
+  for tileOffset in countup(0, 0x17F0, 0xF):
     var twoBB: TwoBB
     for b in countup(0'u16, 0xF):
       twoBB[b] = ppu.vRAMTileDataBank0[uint16(tileOffset) + b] # Load the 2bb encoding of a sprite (16 bytes)
@@ -140,7 +140,7 @@ proc renderMgbTileMap*(renderer: RendererPtr; ppu: PPU) =
   # Bank 1
   xOffset = 0
   yOffset = 17
-  for tileOffset in countup(0, 0x17FF, 0xF):
+  for tileOffset in countup(0, 0x17F0, 0xF):
     var twoBB: TwoBB
     for b in countup(0'u16, 0xF):
       twoBB[b] = ppu.vRAMTileDataBank1[uint16(tileOffset) + b] # Load the 2bb encoding of a sprite (16 bytes)
