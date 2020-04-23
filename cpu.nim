@@ -1016,7 +1016,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.debugStr = "ADD A"
   of 0x88:
     cpu.pc += 1
-    cpu.opAdc(readMsb(cpu.hl))
+    cpu.opAdc(readMsb(cpu.bc))
     result.tClock = 4
     result.mClock = 1
     result.debugStr = "ADC B"
@@ -1114,7 +1114,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.debugStr = "SUB A"
   of 0x98:
     cpu.pc += 1
-    cpu.opSbc(readMsb(cpu.hl))
+    cpu.opSbc(readMsb(cpu.bc))
     result.tClock = 4
     result.mClock = 1
     result.debugStr = "SBC B"
@@ -1212,7 +1212,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.debugStr = "AND A"
   of 0xA8:
     cpu.pc += 1
-    cpu.opXor(readMsb(cpu.hl))
+    cpu.opXor(readMsb(cpu.bc))
     result.tClock = 4
     result.mClock = 1
     result.debugStr = "XOR B"
@@ -1310,7 +1310,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.debugStr = "OR A"
   of 0xB8:
     cpu.pc += 1
-    cpu.opCp(readMsb(cpu.hl))
+    cpu.opCp(readMsb(cpu.bc))
     result.tClock = 4
     result.mClock = 1
     result.debugStr = "CP B"
