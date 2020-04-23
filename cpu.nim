@@ -80,21 +80,21 @@ proc hFlag(cpu: var CPU): bool =
 proc cFlag(cpu: var CPU): bool =
   return cpu.f.testBit(4)
 
-proc isAddCarry(a: uint8; b: uint8): bool = 
-  let x = int(a) + int(b) # Cast, otherwise it will overflow
-  result = x > 0xFF
+proc isAddCarry(a: uint8; b: uint8, usedCarry: uint8): bool = 
+  let x = int(a) + int(b) + int(usedCarry) # Cast, otherwise it will overflow
+  result = x.bitand(0x100) == 0x100
 
-proc isSubCarry(a: uint8; b: uint8): bool = 
-  let x = int(a) + int(b) # Cast, otherwise it will be unsigned
-  result = x < 0
+proc isSubCarry(a: uint8; b: uint8, usedCarry: uint8): bool = 
+  let x = int(a) + int(b) + int(usedCarry) # Cast, otherwise it will be unsigned
+  result = x.bitand(0x100) == 0x00
 
-proc isAddHalfCarry(a: uint8; b: uint8): bool =
+proc isAddHalfCarry(a: uint8; b: uint8, usedCarry: uint8): bool =
   # Deterimines if bit4 was carried during addition
-  result = bitand(a.bitand(0xF) + b.bitand(0xF), 0x10) == 0x10
+  result = bitand(a.bitand(0xF) + b.bitand(0xF) + usedCarry.bitand(0xF), 0x10) == 0x10
 
-proc isSubHalfCarry(a: uint8; b: uint8): bool =
+proc isSubHalfCarry(a: uint8; b: uint8, usedCarry: uint8): bool =
   # Deterimines if bit4 was carried during subtraction
-  result = bitand(a.bitand(0xF) - b.bitand(0xF), 0x10) < 0
+  result = bitand(a.bitand(0xF) + b.bitand(0xF) + usedCarry.bitand(0xF), 0x10) == 0x00
 
 proc opOr(cpu: var CPU; value: uint8): void = 
   # Executes an OR operation on the A Register
@@ -120,49 +120,54 @@ proc opXor(cpu: var CPU; value: uint8): void =
   cpu.a = bitxor(cpu.a, value)
   cpu.setFlagZ(0 == cpu.a)
 
+proc doAdd(cpu: var CPU, value1: uint8, value2: uint8, throughCarry: bool):uint8 =
+  var usedCarry: uint8 = 0
+  if cpu.cFlag and throughCarry:
+    usedcarry = 1
+
+  cpu.setFlagH(isAddHalfCarry(value1, value2, usedcarry))
+  cpu.setFlagC(isAddCarry(value1, value2, usedcarry))
+  result = value1 + value2 + usedcarry;
+
 proc opAdd(cpu: var CPU; value: uint8): void = 
   # Executes add on the A Register
   cpu.setFlagN(false)
-  cpu.setFlagH(isAddHalfCarry(cpu.a, value))
-  cpu.setFlagC(isAddCarry(cpu.a, value))
-  cpu.a = cpu.a + value;
+  cpu.a = cpu.doAdd(cpu.a, value, false)
   cpu.setFlagZ(0 == cpu.a)
 
 proc opAdc(cpu: var CPU; value: uint8): void = 
-  var tmp = value
   # Executes add on the A Register + Carry if set
-  if cpu.cFlag: tmp += 1
   cpu.setFlagN(false)
-  cpu.setFlagH(isAddHalfCarry(cpu.a, tmp))
-  cpu.setFlagC(isAddCarry(cpu.a, tmp))
-  cpu.a = cpu.a + tmp;
+  cpu.a = cpu.doAdd(cpu.a, value, true)
   cpu.setFlagZ(0 == cpu.a)
+
+proc doSub(cpu: var CPU, value1: uint8, value2: uint8, throughCarry: bool):uint8 =
+  var ones = not(value2)
+  var usedCarry: uint8 = 1
+  if cpu.cFlag and throughCarry:
+    usedcarry = 0
+
+  cpu.setFlagH(isSubHalfCarry(value1, ones, usedcarry))
+  cpu.setFlagC(isSubCarry(value1, ones, usedcarry))
+  result = value1 + ones + usedcarry;
 
 proc opSub(cpu: var CPU; value: uint8): void = 
   # Executes substration on the A Register
   cpu.setFlagN(true)
-  cpu.setFlagH(isSubHalfCarry(cpu.a, value))
-  cpu.setFlagC(isSubCarry(cpu.a, value))
-  cpu.a = cpu.a - value;
+  cpu.a = cpu.doSub(cpu.a, value, false)
   cpu.setFlagZ(0 == cpu.a)
 
 proc opSbc(cpu: var CPU; value: uint8): void = 
-  var tmp = value
   # Executes substration on the A Register - Carry Flag
-  if cpu.cFlag: tmp += 1 # Carry is an additional decrement later
   cpu.setFlagN(true)
-  cpu.setFlagH(isSubHalfCarry(cpu.a, tmp))
-  cpu.setFlagC(isSubCarry(cpu.a, tmp))
-  cpu.a = cpu.a - tmp;
+  cpu.a = cpu.doSub(cpu.a, value, true)
   cpu.setFlagZ(0 == cpu.a)
 
 proc opCp(cpu: var CPU; value: uint8): void = 
   # Compares A to value, this is essentially subtract with ignored results
-  let tmpA = cpu.a
   cpu.setFlagN(true)
-  cpu.setFlagH(isSubHalfCarry(tmpA, value))
-  cpu.setFlagC(isSubCarry(tmpA, value))
-  cpu.setFlagZ(0 == tmpA - value)
+  let tmpA = cpu.doSub(cpu.a, value, false)
+  cpu.setFlagZ(0 == tmpA)
 
 template toSigned(x: uint8): int8 = cast[int8](x)
 
@@ -198,7 +203,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     # Note that Carry is NOT set on this operation
     var tmp = readMsb(cpu.bc)
     cpu.setFlagN(true)
-    cpu.setFlagH(isAddHalfCarry(tmp, 1))
+    cpu.setFlagH(isAddHalfCarry(tmp, 1, 0))
     tmp = tmp + 1;
     cpu.setFlagZ(0 == tmp)
     cpu.bc = setMsb(cpu.bc, tmp)
@@ -209,8 +214,10 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
   of 0x05:
     # Note that Carry is NOT set on this operation
     var tmp = readMsb(cpu.bc)
+    var one: uint8 = 1
+    var onec = not(one)
     cpu.setFlagN(true)
-    cpu.setFlagH(isSubHalfCarry(tmp, 1))
+    cpu.setFlagH(isSubHalfCarry(tmp, onec, 0))
     tmp = tmp - 1;
     cpu.setFlagZ(0 == tmp)
     cpu.bc = setMsb(cpu.bc, tmp)
@@ -241,7 +248,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     # Note that Carry is NOT set on this operation
     var tmp = readLsb(cpu.bc)
     cpu.setFlagN(true)
-    cpu.setFlagH(isAddHalfCarry(tmp, 1))
+    cpu.setFlagH(isAddHalfCarry(tmp, 1, 0))
     tmp = tmp + 1;
     cpu.setFlagZ(0 == tmp)
     cpu.bc = setLsb(cpu.bc, tmp)
@@ -252,8 +259,10 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
   of 0x0D:
     # Note that Carry is NOT set on this operation
     var tmp = readLsb(cpu.bc)
+    var one: uint8 = 1
+    var onec = not(one)
     cpu.setFlagN(true)
-    cpu.setFlagH(isSubHalfCarry(tmp, 1))
+    cpu.setFlagH(isSubHalfCarry(tmp, onec, 0))
     tmp = tmp - 1;
     cpu.setFlagZ(0 == tmp)
     cpu.bc = setLsb(cpu.bc, tmp)
@@ -298,7 +307,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     # Note that Carry is NOT set on this operation
     var tmp = readMsb(cpu.de)
     cpu.setFlagN(true)
-    cpu.setFlagH(isAddHalfCarry(tmp, 1))
+    cpu.setFlagH(isAddHalfCarry(tmp, 1, 0))
     tmp = tmp + 1;
     cpu.setFlagZ(0 == tmp)
     cpu.de = setMsb(cpu.de, tmp)
@@ -309,8 +318,10 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
   of 0x15:
     # Note that Carry is NOT set on this operation
     var tmp = readMsb(cpu.de)
+    var one: uint8 = 1
+    var onec = not(one)
     cpu.setFlagN(true)
-    cpu.setFlagH(isSubHalfCarry(tmp, 1))
+    cpu.setFlagH(isSubHalfCarry(tmp, onec, 0))
     tmp = tmp - 1;
     cpu.setFlagZ(0 == tmp)
     cpu.de = setMsb(cpu.de, tmp)
@@ -341,7 +352,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     # Note that Carry is NOT set on this operation
     var tmp = readLsb(cpu.de)
     cpu.setFlagN(true)
-    cpu.setFlagH(isAddHalfCarry(tmp, 1))
+    cpu.setFlagH(isAddHalfCarry(tmp, 1, 0))
     tmp = tmp + 1;
     cpu.setFlagZ(0 == tmp)
     cpu.de = setLsb(cpu.de, tmp)
@@ -352,8 +363,10 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
   of 0x1D:
     # Note that Carry is NOT set on this operation
     var tmp = readLsb(cpu.de)
+    var one: uint8 = 1
+    var onec = not(one)
     cpu.setFlagN(true)
-    cpu.setFlagH(isSubHalfCarry(tmp, 1))
+    cpu.setFlagH(isSubHalfCarry(tmp, onec, 0))
     tmp = tmp - 1;
     cpu.setFlagZ(0 == tmp)
     cpu.de = setLsb(cpu.de, tmp)
@@ -405,7 +418,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     # Note that Carry is NOT set on this operation
     var tmp = readMsb(cpu.hl)
     cpu.setFlagN(true)
-    cpu.setFlagH(isAddHalfCarry(tmp, 1))
+    cpu.setFlagH(isAddHalfCarry(tmp, 1, 0))
     tmp = tmp + 1;
     cpu.setFlagZ(0 == tmp)
     cpu.hl = setMsb(cpu.hl, tmp)
@@ -416,8 +429,10 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
   of 0x25:
     # Note that Carry is NOT set on this operation
     var tmp = readMsb(cpu.hl)
+    var one: uint8 = 1
+    var onec = not(one)
     cpu.setFlagN(true)
-    cpu.setFlagH(isSubHalfCarry(tmp, 1))
+    cpu.setFlagH(isSubHalfCarry(tmp, onec, 0))
     tmp = tmp - 1;
     cpu.setFlagZ(0 == tmp)
     cpu.hl = setMsb(cpu.hl, tmp)
@@ -449,7 +464,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     # Note that Carry is NOT set on this operation
     var tmp = readLsb(cpu.hl)
     cpu.setFlagN(true)
-    cpu.setFlagH(isAddHalfCarry(tmp, 1))
+    cpu.setFlagH(isAddHalfCarry(tmp, 1, 0))
     tmp = tmp + 1;
     cpu.setFlagZ(0 == tmp)
     cpu.hl = setLsb(cpu.hl, tmp)
@@ -460,8 +475,10 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
   of 0x2D:
     # Note that Carry is NOT set on this operation
     var tmp = readLsb(cpu.hl)
+    var one: uint8 = 1
+    var onec = not(one)
     cpu.setFlagN(true)
-    cpu.setFlagH(isSubHalfCarry(tmp, 1))
+    cpu.setFlagH(isSubHalfCarry(tmp, onec, 0))
     tmp = tmp - 1;
     cpu.setFlagZ(0 == tmp)
     cpu.hl = setLsb(cpu.hl, tmp)
@@ -500,7 +517,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     # Note that Carry is NOT set on this operation
     var tmp = cpu.mem.gameboy.readByte(cpu.hl)
     cpu.setFlagN(true)
-    cpu.setFlagH(isAddHalfCarry(tmp, 1))
+    cpu.setFlagH(isAddHalfCarry(tmp, 1, 0))
     tmp = tmp + 1;
     cpu.setFlagZ(0 == tmp)
     cpu.mem.gameboy.writeByte(cpu.hl, tmp)
@@ -511,8 +528,10 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
   of 0x35:
     # Note that Carry is NOT set on this operation
     var tmp = cpu.mem.gameboy.readByte(cpu.hl)
+    var one: uint8 = 1
+    var onec = not(one)
     cpu.setFlagN(true)
-    cpu.setFlagH(isSubHalfCarry(tmp, 1))
+    cpu.setFlagH(isSubHalfCarry(tmp, onec, 0))
     tmp = tmp - 1;
     cpu.setFlagZ(0 == tmp)
     cpu.mem.gameboy.writeByte(cpu.hl, tmp)
@@ -544,7 +563,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     # Note that Carry is NOT set on this operation
     var tmp = cpu.a
     cpu.setFlagN(true)
-    cpu.setFlagH(isAddHalfCarry(tmp, 1))
+    cpu.setFlagH(isAddHalfCarry(tmp, 1, 0))
     tmp = tmp + 1;
     cpu.setFlagZ(0 == tmp)
     cpu.a = tmp
@@ -555,8 +574,10 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
   of 0x3D:
     # Note that Carry is NOT set on this operation
     var tmp = cpu.a
+    var one: uint8 = 1
+    var onec = not(one)
     cpu.setFlagN(true)
-    cpu.setFlagH(isSubHalfCarry(tmp, 1))
+    cpu.setFlagH(isSubHalfCarry(tmp, onec, 0))
     tmp = tmp - 1;
     cpu.setFlagZ(0 == tmp)
     cpu.a = tmp
