@@ -2,6 +2,7 @@ import types
 import bitops
 import cartridge
 import ppu
+import strutils
 
 export types.CPUMemory
 
@@ -64,13 +65,16 @@ proc readByte*(gameboy: Gameboy, address: uint16): uint8 =
 proc writeByte*(gameboy: Gameboy; address: uint16; value: uint8): void =
   if address < 0x8000:
     gameboy.cartridge.writeByte(address, value)
-  if address < 0xA000:
-      discard
-  if address < 0xC000:
+  elif address < 0xA000:
+    gameboy.ppu.writeByte(address, value)
+    return
+  elif address < 0xC000:
     gameboy.cartridge.writeByte(address, value)
   #if address < 0x9FFF:
     # TODO
     #gameboy.ppu.writeByte(address, value)
+  else:
+    return
   if 0xFF0F == address:
     gameboy.intFlag = value
   # PPU Allocations

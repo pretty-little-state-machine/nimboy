@@ -60,11 +60,11 @@ type
 
   PPU* = object
     gb*: PPUGb
-    vRAMTileDataBank0*: array[0x180F, uint8] # Stored in 0x8000 - 0x97FF - 384 Tiles - This doesn't divide evenly.?????
-    vRAMTileDataBank1*: array[0x180F, uint8] # Stored in 0x8000 - 0x97FF - 384 More Tiles - Color Gameboy Only
-    vRAMBgMap1*: array[0x3FF, uint8] # Stored in 0x9800 - 0x9BFF VG Background TileMaps 1 - 32x32 Tile Background Map
-    vRAMBgMap2*: array[0x3FF, uint8] # Stored in 0x9C00 - 0x9FFF VG Background TileMaps 2 - 32x32 Tile Background Map
-    oam*: array[0x9F, uint8] # Sprite Attribute Table - Object Attribute Memory - 40 Sprites
+    vRAMTileDataBank0*: array[0x1800, uint8] # Stored in 0x8000 - 0x97FF - 384 Tiles
+    vRAMTileDataBank1*: array[0x1800, uint8] # Stored in 0x8000 - 0x97FF - 384 More Tiles - Color Gameboy Only
+    vRAMBgMap1*: array[0x400, uint8] # Stored in 0x9800 - 0x9BFF VG Background TileMaps 1 - 32x32 Tile Background Map
+    vRAMBgMap2*: array[0x400, uint8] # Stored in 0x9C00 - 0x9FFF VG Background TileMaps 2 - 32x32 Tile Background Map
+    oam*: array[0xA0, uint8] # Sprite Attribute Table - Object Attribute Memory - 40 Sprites
     # LCD Stuff
     lcdc*: uint8  # 0xFF40 - LCD Control Reigster
     stat*: uint8  # 0xFF41 - LCD Interrupt Handling
@@ -116,11 +116,13 @@ type
     clock*: uint32 # Internal OAM Buffer Clock - Counts up to 40 ticks then resets
 
   Fetch* = object
-    data*: uint8          # Data destined for the FIFO queue
-    mode*: fModeState     # Mode of the fetcher
-    tick*: uint8          # Fetch takes two ticks so that is tracked here.
-    address*: uint16      # Address that is being fetched
-    entity*: FetchEntity  # Type of data to be fetched
+    tmpTileNum*: uint8     # Tmp placeholder for what tile will be read
+    tmpByte0*: uint8       # Tmp placeholder for first byte read 
+    data*: array[8, uint8] # Data destined for the FIFO queue
+    mode*: fModeState      # Mode of the fetcher
+    canRun*: bool          # Fetch runs at 2Mhz so every OTHER call will be allowed.
+    entity*: FetchEntity   # Type of data to be fetched
+    idle*: bool            # The Fetcher goes idle when the data is waiting to be put into FIFO
     
   PixelFIFO* = object
     data*: array[16, PixelFifoEntry] # The FIFO queue itself
@@ -128,7 +130,7 @@ type
     pixelTransferX*: uint8  # Counts up to 160 as X Coordinates are drawn
 
   fModeState* = enum
-    fmsReadTile, fmsReadData0, fmsReadData1, fmsIdle
+    fmsReadTile, fmsReadData0, fmsReadData1
 
   FetchEntity* = enum
     ftBackground, ftWindow, ftSprite0, ftSprite1 # Used to determine the pixel mixing
