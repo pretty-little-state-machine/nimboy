@@ -1002,9 +1002,9 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 1
     result.debugStr = "ADD L"
   of 0x86: 
-    let value = cpu.mem.gameboy.readbyte(cpu.pc + 1)
+    let value = cpu.mem.gameboy.readbyte(cpu.hl)
     cpu.opAdd(value)
-    cpu.pc += 2
+    cpu.pc += 1
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "ADD (HL)"  & $toHex(value)
@@ -1051,9 +1051,9 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 1
     result.debugStr = "ADC L"
   of 0x8E: 
-    let value = cpu.mem.gameboy.readbyte(cpu.pc + 1)
+    let value = cpu.mem.gameboy.readbyte(cpu.hl)
     cpu.opAdc(value)
-    cpu.pc += 2
+    cpu.pc += 1
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "ADC (HL)"  & $toHex(value)
@@ -1100,9 +1100,9 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 1
     result.debugStr = "SUB L"
   of 0x96: 
-    let value = cpu.mem.gameboy.readbyte(cpu.pc + 1)
+    let value = cpu.mem.gameboy.readbyte(cpu.hl)
     cpu.opSub(value)
-    cpu.pc += 2
+    cpu.pc += 1
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "SUB (HL)"  & $toHex(value)
@@ -1149,9 +1149,9 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 1
     result.debugStr = "SBC L"
   of 0x9E: 
-    let value = cpu.mem.gameboy.readbyte(cpu.pc + 1)
+    let value = cpu.mem.gameboy.readbyte(cpu.hl)
     cpu.opSbc(value)
-    cpu.pc += 2
+    cpu.pc += 1
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "SBC (HL)"  & $toHex(value)
@@ -1198,9 +1198,9 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 1
     result.debugStr = "AND L"
   of 0xA6: 
-    let value = cpu.mem.gameboy.readbyte(cpu.pc + 1)
+    let value = cpu.mem.gameboy.readbyte(cpu.hl)
     cpu.opAnd(value)
-    cpu.pc += 2
+    cpu.pc += 1
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "AND (HL)"  & $toHex(value)
@@ -1247,9 +1247,9 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 1
     result.debugStr = "XOR L"
   of 0xAE: 
-    let value = cpu.mem.gameboy.readbyte(cpu.pc + 1)
+    let value = cpu.mem.gameboy.readbyte(cpu.hl)
     cpu.opXor(value)
-    cpu.pc += 2
+    cpu.pc += 1
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "XOR (HL)"  & $toHex(value)
@@ -1296,9 +1296,9 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 1
     result.debugStr = "OR L"
   of 0xB6: 
-    let value = cpu.mem.gameboy.readbyte(cpu.pc + 1)
+    let value = cpu.mem.gameboy.readbyte(cpu.hl)
     cpu.opOr(value)
-    cpu.pc += 2
+    cpu.pc += 1
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "OR (HL)"  & $toHex(value)
@@ -1345,9 +1345,9 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 1
     result.debugStr = "CP L"
   of 0xBE: 
-    let value = cpu.mem.gameboy.readbyte(cpu.pc + 1)
+    let value = cpu.mem.gameboy.readbyte(cpu.hl)
     cpu.opCp(value)
-    cpu.pc += 2
+    cpu.pc += 1
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "CP (HL)"  & $toHex(value)
