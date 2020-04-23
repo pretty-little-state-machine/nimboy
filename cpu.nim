@@ -176,8 +176,8 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.debugStr = "NOP"
   of 0x01:
     let word = cpu.readWord(cpu.pc + 1) # Decode only
-    cpu.bc = setLsb(cpu.hl, cpu.mem.gameboy.readByte(cpu.pc + 1))
-    cpu.bc = setMsb(cpu.hl, cpu.mem.gameboy.readByte(cpu.pc + 2))
+    cpu.bc = setLsb(cpu.bc, cpu.mem.gameboy.readByte(cpu.pc + 1))
+    cpu.bc = setMsb(cpu.bc, cpu.mem.gameboy.readByte(cpu.pc + 2))
     cpu.pc += 3
     result.tClock = 12
     result.mClock = 3
