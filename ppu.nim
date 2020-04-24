@@ -16,8 +16,8 @@
 #
 import system
 import bitops
+import deques
 import types
-import strutils
 
 proc newPPUGb*(gameboy: Gameboy): PPUGb =
   PPUGb(gameboy: gameboy)
@@ -25,7 +25,7 @@ proc newPPUGb*(gameboy: Gameboy): PPUGb =
 template toSigned(x: uint8): int8 = cast[int8](x)
 
 proc getWindowTileNibble(ppu: PPU; tileNumber: uint8; row: uint8; byte: uint8): uint8 =
-  # Returns the specific 2bb encoded byte of a sprite (4 pixels)
+  # Returns the specific 2bb encoded byte of a sprite (4 dots)
   # This automatically determines the map and offset based 
   # on the LCDC settings
   var memOffset = 0 # 0x8000 in mapped memory
@@ -114,29 +114,32 @@ proc tickFetch(ppu: var PPU; row: uint8): void =
     ppu.fetch.mode = fmsReadData1
   of fmsReadData1:
     let byte1 = ppu.getWindowTileNibble(1, 1, 1)
-    ppu.fetch.data = decode2bbTileRow(ppu.fetch.tmpByte0, byte1)
+    let tmpData = decode2bbTileRow(ppu.fetch.tmpByte0, byte1)
+    # Build up the 7 PixelFIFOEntry objects from the decoding
+    for x in countup(0, 7):
+      ppu.fetch.result[x].data = tmpData[x]
+      ppu.fetch.result[x].entity = ppu.fetch.entity
     ppu.fetch.idle = true # Data is now ready
 
-proc tickPixelTransfer(ppu: var PPU): void = 
-  # Reset the PPU and return
-  if 160 == ppu.fifo.pixelTransferX:
+proc pixelTransferComplete(ppu: var PPU): void =
     ppu.ly += 1
     ppu.mode = hBlank
-    ppu.fifo.pixelTransferX = 0
-    ppu.fifo.queueDepth = 0
-    return
+    ppu.lx = 0
+    ppu.fifo.clear()
+
+proc tickPixelTransfer(ppu: var PPU): void = 
+  # Handles the Pixel Transfer mode of the PPU
 
   # TODO Add sprite detection
-  if ppu.fifo.queueDepth > 8:
+  if ppu.fifo.len > 8:
     # Mix Pixels - Up to 10 cycles based on OAM Buffer
     #for i in countup(1'u8, ppu.oamBuffer.idx):
       # Determine which entry wins and replace values in FIFO
       # Decode Palette
       #break
     # Push Pixel to LCD Display
-    ppu.outputBuffer[(ppu.ly * 144) + ppu.fifo.pixelTransferX] = ppu.fifo.data[0]
-    ppu.fifo.queueDepth -= 1
-    ppu.fifo.pixelTransferX += 1
+    ppu.outputBuffer[(ppu.ly * 144) + ppu.lx] = ppu.fifo.popFirst()
+    ppu.lx += 1
 
   # Only run the fetcher every other tick.
   if false == ppu.fetch.canRun:
@@ -145,14 +148,15 @@ proc tickPixelTransfer(ppu: var PPU): void =
     ppu.tickFetch(ppu.ly div 8)
     ppu.fetch.canRun = false
 
-  if true == ppu.fetch.idle and ppu.fifo.queueDepth <= 8:
+  # Pull the data out of the fetch when FIFO has room
+  if true == ppu.fetch.idle and ppu.fifo.len() <= 8:
     for x in countup(0x0, 0x7):
-      var pfe: PixelFIFOEntry
-      pfe.data = ppu.fetch.data
-      pfe.entity = ppu.fetch.entity
-      ppu.fifo.data[x + 0x8] = pfe
-    ppu.fifo.queueDepth += 8
-    ppu.fetch.resetFetch() # Pull the data out of the fetch
+      ppu.fifo.addLast(ppu.fetch.result[x])
+    ppu.fetch.resetFetch() 
+
+  # Pixel transfer complete - Switch to HBlank
+  if 160 == ppu.lx:
+    ppu.pixelTransferComplete()
 
 proc hBlankUpdates(ppu: var PPU): void =
   # Writes in any requested memory settings for the PPU during the H-Blank

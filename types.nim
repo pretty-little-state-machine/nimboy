@@ -1,3 +1,5 @@
+import deques
+
 type
   Gameboy* = ref GameboyObj
   GameboyObj* = object
@@ -103,7 +105,8 @@ type
     clock*: uint32 # Internal Clock
     oamBuffer*: OamBuffer # Used for OAM Detection on eac horizontal line
     fetch*: Fetch     # OAM Data and sprite data fetcher - Populates the FIFO
-    fifo*: PixelFIFO  # Internals used for pixel rendering
+    fifo*: Deque[PixelFIFOEntry]  # Internals used for pixel rendering
+    lx*: uint8        # Internal lx state
 
   PPUGb* = ref object
     gameboy*: Gameboy
@@ -119,17 +122,12 @@ type
   Fetch* = object
     tmpTileNum*: uint8     # Tmp placeholder for what tile will be read
     tmpByte0*: uint8       # Tmp placeholder for first byte read 
-    data*: array[8, uint8] # Data destined for the FIFO queue
+    result*: array[8, PixelFIFOEntry] # Block of data destined for the FIFO queue
     mode*: fModeState      # Mode of the fetcher
     canRun*: bool          # Fetch runs at 2Mhz so every OTHER call will be allowed.
     entity*: FetchEntity   # Type of data to be fetched
     idle*: bool            # The Fetcher goes idle when the data is waiting to be put into FIFO
     
-  PixelFIFO* = object
-    data*: array[16, PixelFifoEntry] # The FIFO queue itself
-    queueDepth*: uint8      # Number of current entries in the queue
-    pixelTransferX*: uint8  # Counts up to 160 as X Coordinates are drawn
-
   fModeState* = enum
     fmsReadTile, fmsReadData0, fmsReadData1
 
@@ -137,5 +135,5 @@ type
     ftBackground, ftWindow, ftSprite0, ftSprite1 # Used to determine the pixel mixing
 
   PixelFIFOEntry* = object
-    data*: array[8, uint8]  # Will only contain pallete references - 0b00 -> 0b11
-    entity*: FetchEntity    # Used to determine rules for mixing and palette lookups
+    data*: uint8          # Will only contain pallete references - 0b00 -> 0b11
+    entity*: FetchEntity  # Used to determine rules for mixing and palette lookups
