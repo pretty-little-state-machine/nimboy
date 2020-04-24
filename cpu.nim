@@ -207,10 +207,11 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.debugStr = "INC BC"
   of 0x04:
     # Note that Carry is NOT set on this operation
+    var oldcarry = cpu.cFlag()
     var tmp = readMsb(cpu.bc)
-    cpu.setFlagN(true)
-    cpu.setFlagH(isAddHalfCarry(tmp, 1, 0))
-    tmp = tmp + 1;
+    tmp = cpu.doAdd(tmp,1,false)
+    cpu.setFlagC(oldcarry)
+    cpu.setFlagN(false)
     cpu.setFlagZ(0 == tmp)
     cpu.bc = setMsb(cpu.bc, tmp)
     cpu.pc += 1
@@ -219,12 +220,11 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.debugStr = "INC B"
   of 0x05:
     # Note that Carry is NOT set on this operation
+    var oldcarry = cpu.cFlag()
     var tmp = readMsb(cpu.bc)
-    var one: uint8 = 1
-    var onec = not(one)
+    tmp = cpu.doSub(tmp,1,false)
+    cpu.setFlagC(oldcarry)
     cpu.setFlagN(true)
-    cpu.setFlagH(isSubHalfCarry(tmp, onec, 0))
-    tmp = tmp - 1;
     cpu.setFlagZ(0 == tmp)
     cpu.bc = setMsb(cpu.bc, tmp)
     cpu.pc += 1
