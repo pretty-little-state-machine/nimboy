@@ -18,6 +18,12 @@ proc readWord(cpu: CPU; address: uint16): uint16 =
   word = bitor(word, cpu.mem.gameboy.readByte(address))
   return word
 
+proc writeWord(cpu: var CPU; address: uint16, word: uint16): void =
+  var tempAddress = address
+  cpu.mem.gameboy.writeByte(tempAddress, readLsb(word))
+  tempAddress += 1
+  cpu.mem.gameboy.writeByte(tempAddress, readMsb(word))
+
 proc setMsb(word: var uint16; byte: uint8): uint16 = 
   # Sets the MSB to the new byte
   let tmpWord:uint16 = byte
@@ -232,6 +238,23 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "LD B " & $toHex(byte)
+  of 0x08:
+    let address = cpu.readWord(cpu.pc + 1) 
+    cpu.writeWord(address, cpu.sp)
+    cpu.pc += 3
+    result.tClock = 20
+    result.mClock = 5
+    result.debugStr = "LD  (" & $toHex(address) & ") SP"
+  of 0x09:
+    var byte: uint8 = cpu.doAdd(readLsb(cpu.hl), readLsb(cpu.bc), false)
+    cpu.hl = setLsb(cpu.hl, byte)
+    byte = cpu.doAdd(readMsb(cpu.hl), readMsb(cpu.bc), true)
+    cpu.hl = setMsb(cpu.hl, byte)
+    cpu.setFlagN(true)
+    cpu.pc += 1
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "ADD HL BC"
   of 0x0A:
     cpu.a = cpu.mem.gameboy.readByte(cpu.bc)
     cpu.pc += 1
@@ -336,6 +359,16 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "LD D " & $toHex(byte)
+  of 0x19:
+    var byte: uint8 = cpu.doAdd(readLsb(cpu.hl), readLsb(cpu.de), false)
+    cpu.hl = setLsb(cpu.hl, byte)
+    byte = cpu.doAdd(readMsb(cpu.hl), readMsb(cpu.de), true)
+    cpu.hl = setMsb(cpu.hl, byte)
+    cpu.setFlagN(true)
+    cpu.pc += 1
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "ADD HL DE"
   of 0x1A:
     cpu.a = cpu.mem.gameboy.readByte(cpu.de)
     cpu.pc += 1
@@ -447,6 +480,16 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "LD H " & $toHex(byte)
+  of 0x29:
+    var byte: uint8 = cpu.doAdd(readLsb(cpu.hl), readLsb(cpu.hl), false)
+    cpu.hl = setLsb(cpu.hl, byte)
+    byte = cpu.doAdd(readMsb(cpu.hl), readMsb(cpu.hl), true)
+    cpu.hl = setMsb(cpu.hl, byte)
+    cpu.setFlagN(true)
+    cpu.pc += 1
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "ADD HL HL"
   of 0x2A:
     cpu.a = cpu.mem.gameboy.readByte(cpu.hl)
     cpu.hl += 1
@@ -546,6 +589,16 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.tClock = 12
     result.mClock = 4
     result.debugStr = "LD (HL) " & $toHex(byte)
+  of 0x39:
+    var byte: uint8 = cpu.doAdd(readLsb(cpu.hl), readLsb(cpu.sp), false)
+    cpu.hl = setLsb(cpu.hl, byte)
+    byte = cpu.doAdd(readMsb(cpu.hl), readMsb(cpu.sp), true)
+    cpu.hl = setMsb(cpu.hl, byte)
+    cpu.setFlagN(true)
+    cpu.pc += 1
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "ADD HL SP"
   of 0x3A:
     cpu.a = cpu.mem.gameboy.readByte(cpu.hl)
     cpu.hl -= 1
