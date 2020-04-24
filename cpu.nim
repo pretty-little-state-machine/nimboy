@@ -1577,6 +1577,15 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.tClock = 16
     result.mClock = 4
     result.debugStr = "RST 20"
+  of 0xEA:
+    var word: uint16
+    word = setLsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 1))
+    word = setMsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 2))
+    cpu.mem.gameboy.writeByte(word, cpu.a)
+    cpu.pc += 3
+    result.tClock = 16
+    result.mClock = 4
+    result.debugStr = "LD (" & $tohex(word) & ") A"
   of 0xEE:
     let byte = cpu.mem.gameboy.readbyte(cpu.pc + 1)
     cpu.opXor(byte)
