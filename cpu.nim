@@ -177,13 +177,13 @@ proc doSub(cpu: var CPU, value1: uint8, value2: uint8, throughCarry: bool):uint8
   result = value1 + ones + usedcarry;
 
 proc opSub(cpu: var CPU; value: uint8): void = 
-  # Executes substration on the A Register
+  # Executes substraction on the A Register
   cpu.setFlagN(true)
   cpu.a = cpu.doSub(cpu.a, value, false)
   cpu.setFlagZ(0 == cpu.a)
 
 proc opSbc(cpu: var CPU; value: uint8): void = 
-  # Executes substration on the A Register - Carry Flag
+  # Executes substraction on the A Register - Carry Flag
   cpu.setFlagN(true)
   cpu.a = cpu.doSub(cpu.a, value, true)
   cpu.setFlagZ(0 == cpu.a)
@@ -194,16 +194,84 @@ proc opCp(cpu: var CPU; value: uint8): void =
   let tmpA = cpu.doSub(cpu.a, value, false)
   cpu.setFlagZ(0 == tmpA)
 
+proc doRollRight(cpu: var CPU; value: uint8, throughCarry: bool): uint8 =
+  var newValue: uint8 = value
+  var newCarry: bool = bitand(newValue, 0x01) == 0x01
+  var newSevenBit:uint8 = 0
+
+  if throughCarry:
+    if cpu.cFlag:
+      newSevenBit = 0x80
+    else: 
+      newSevenBit = 0x00
+  else:
+    if newCarry:
+      newSevenBit = 0x80
+    else: 
+      newSevenBit = 0x00
+
+  newValue = newValue shr 1
+  newValue = bitand(bitor(newValue, newSevenBit), 0xFF)
+  cpu.setFlagC(newCarry)
+  cpu.setFlagZ(0 == newValue)
+  cpu.setFlagN(false)
+  cpu.setFlagH(false)
+  result = newValue
+
+proc doRollLeft(cpu: var CPU; value: uint8, throughCarry: bool): uint8 =
+  var newValue: uint8 = value
+  var newCarry: bool = bitand(newValue, 0x80) == 0x80
+  var newZeroBit:uint8 = 0
+
+  if throughCarry:
+    if cpu.cFlag:
+      newZeroBit = 0x01
+    else: 
+      newZeroBit = 0x00
+  else:
+    if newCarry:
+      newZeroBit = 0x01
+    else: 
+      newZeroBit = 0x00
+
+  newValue = newValue shl 1
+  newValue = bitand(bitor(newValue, newZeroBit), 0xFF)
+  cpu.setFlagC(newCarry)
+  cpu.setFlagZ(0 == newValue)
+  cpu.setFlagN(false)
+  cpu.setFlagH(false)
+  result = newValue
+
+
 template toSigned(x: uint8): int8 = cast[int8](x)
 
 proc execute_cb (cpu: var CPU; opcode: uint8): TickResult =
   # Executes a single CPU Opcode
   case opcode
-  # of 0x00:
-  #   cpu.pc += 2
-  #   result.tClock = 8
-  #   result.mClock = 2
-  #   result.debugStr = "RLC B"
+  of 0x00:
+    cpu.bc = setMsb(cpu.bc, cpu.doRollLeft(readMsb(cpu.bc), true))
+    cpu.pc += 2
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "RLC B"
+  of 0x09:
+    cpu.bc = setMsb(cpu.bc, cpu.doRollRight(readMsb(cpu.bc), true))
+    cpu.pc += 2
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "RRC B"
+  of 0x10:
+    cpu.bc = setMsb(cpu.bc, cpu.doRollLeft(readMsb(cpu.bc), false))
+    cpu.pc += 2
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "RL B"
+  of 0x19:
+    cpu.bc = setMsb(cpu.bc, cpu.doRollRight(readMsb(cpu.bc), false))
+    cpu.pc += 2
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "RR B"
   else:
     result.tClock = 0
     result.mClock = 0
