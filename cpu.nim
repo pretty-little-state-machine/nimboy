@@ -37,18 +37,37 @@ proc setLsb(word: var uint16; byte: uint8): uint16 =
   word.setMask(byte)
   return word
 
-proc push(cpu: var CPU; address: uint16; value: uint8): void =
-  # Push onto the stack. This does NOT calculate any cycles for this.
-  cpu.mem.gameboy.writeByte(address, readLsb(cpu.pc))
+proc pushByte(cpu: var CPU; value: uint8): void =
+  # Push byte onto the stack. This does NOT calculate any cycles for this.
   cpu.sp -= 1
-  cpu.mem.gameboy.writeByte(address, readMsb(cpu.pc))
+  cpu.mem.gameboy.writeByte(cpu.sp, value)
+  
+proc popByte(cpu: var CPU): uint8 =
+  # Pop byte from the stack. This does NOT calculate any cycles for this.
+  var value = cpu.mem.gameboy.readByte(cpu.sp)
+  cpu.sp += 1
+  return value
+  
+proc pushWord(cpu: var CPU; value: uint16): void =
+  # Push word onto the stack. This does NOT calculate any cycles for this.
+  cpu.pushByte(readLsb(value))
+  cpu.pushByte(readMsb(value))
+  
+proc popWord(cpu: var CPU): uint16 =
+  # Pop word from the stack. This does NOT calculate any cycles for this.
+  var value: uint16 = 0
+  value = setMsb(value, cpu.popByte())
+  value = setLsb(value, cpu.popByte())
+  return value
+  
+proc call(cpu: var CPU, address: uint16): void =
+  # Push onto the stack. This does NOT calculate any cycles for this.
+  cpu.pushWord(cpu.pc)
+  cpu.pc = address
 
-proc call(cpu: var CPU): void =
+proc ret(cpu: var CPU): void =
   # Push onto the stack. This does NOT calculate any cycles for this.
-  cpu.sp -= 1
-  cpu.mem.gameboy.writeByte(cpu.sp, readLsb(cpu.pc))
-  cpu.sp -= 1
-  cpu.mem.gameboy.writeByte(cpu.sp, readMsb(cpu.pc))
+  cpu.pc = cpu.popWord()
 
 proc setFlagZ(cpu: var CPU; bool: bool): void = 
   if bool:
@@ -1454,19 +1473,23 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 2
     result.debugStr = "ADD A " & $toHex(byte)
   of 0xC7:
-    cpu.call()
-    cpu.pc = 0x00
+    cpu.pc += 1
+    cpu.call(0x00)
     result.tClock = 16
     result.mClock = 4
     result.debugStr = "RST 00"
+  of 0xC9:
+    cpu.ret()
+    result.tClock = 16
+    result.mClock = 4
+    result.debugStr = "RET"
   of 0xCC:
     var word: uint16
     word = setMsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 1))
     word = setLsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 2))
-    cpu.pc += 2 # We increment BEFORE we call. The RET should be the instruction AFTER this one.
+    cpu.pc += 3 # We increment BEFORE we call. The RET should be the instruction AFTER this one.
     if cpu.zFlag:
-      cpu.call()
-      cpu.pc = word
+      cpu.call(word)
       result.tClock = 24
       result.mClock = 6
       result.debugStr = "CALL Z, (" & $toHex(word) & ")"
@@ -1478,9 +1501,8 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     var word: uint16
     word = setMsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 1))
     word = setLsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 2))
-    cpu.pc += 2 # We increment BEFORE we call. The RET should be the instruction AFTER this one.
-    cpu.call()
-    cpu.pc = word
+    cpu.pc += 3 # We increment BEFORE we call. The RET should be the instruction AFTER this one.
+    cpu.call(word)
     result.tClock = 24
     result.mClock = 6
     result.debugStr = "CALL (" & $toHex(word) & ")"
@@ -1492,8 +1514,8 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 2
     result.debugStr = "ADC A " & $toHex(byte)
   of 0xCF:
-    cpu.call()
-    cpu.pc = 0x08
+    cpu.pc += 1
+    cpu.call(0x08)
     result.tClock = 16
     result.mClock = 4
     result.debugStr = "RST 08"
@@ -1514,8 +1536,8 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 2
     result.debugStr = "SUB A " & $toHex(byte)
   of 0xD7:
-    cpu.call()
-    cpu.pc = 0x10
+    cpu.pc += 1
+    cpu.call(0x10)
     result.tClock = 16
     result.mClock = 4
     result.debugStr = "RST 10"
@@ -1523,10 +1545,9 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     var word: uint16
     word = setMsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 1))
     word = setLsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 2))
-    cpu.pc += 2 # We increment BEFORE we call. The RET should be the instruction AFTER this one.
+    cpu.pc += 3 # We increment BEFORE we call. The RET should be the instruction AFTER this one.
     if cpu.cFlag:
-      cpu.call()
-      cpu.pc = word
+      cpu.call(word)
       result.tClock = 24
       result.mClock = 6
       result.debugStr = "CALL C, (" & $toHex(word) & ")"
@@ -1542,8 +1563,8 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 2
     result.debugStr = "SBC A " & $toHex(byte)
   of 0xDF:
-    cpu.call()
-    cpu.pc = 0x18
+    cpu.pc += 1
+    cpu.call(0x18)
     result.tClock = 16
     result.mClock = 4
     result.debugStr = "RST 18"
@@ -1580,8 +1601,8 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 2
     result.debugStr = "AND A " & $toHex(byte)
   of 0xE7:
-    cpu.call()
-    cpu.pc = 0x10
+    cpu.pc += 1
+    cpu.call(0x20)
     result.tClock = 16
     result.mClock = 4
     result.debugStr = "RST 20"
@@ -1602,8 +1623,8 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 2
     result.debugStr = "XOR A " & $toHex(byte)
   of 0xEF:
-    cpu.call()
-    cpu.pc = 0x28
+    cpu.pc += 1
+    cpu.call(0x28)
     result.tClock = 16
     result.mClock = 4
     result.debugStr = "RST 28"
@@ -1647,8 +1668,8 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 2
     result.debugStr = "OR A " & $toHex(byte)
   of 0xF7:
-    cpu.call()
-    cpu.pc = 0x10
+    cpu.pc += 1
+    cpu.call(0x30)
     result.tClock = 16
     result.mClock = 4
     result.debugStr = "RST 30"
@@ -1666,8 +1687,8 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 2
     result.debugStr = "CP A " & $toHex(byte)
   of 0xFF:
-    cpu.call()
-    cpu.pc = 0x38
+    cpu.pc += 1
+    cpu.call(0x38)
     result.tClock = 16
     result.mClock = 4
     result.debugStr = "RST 38"
@@ -1690,8 +1711,7 @@ proc callInterrupt(cpu: var CPU; address: uint16; flagBit: uint8;): TickResult =
   if cpu.ime:
     # Clear the interrupt that fired only. Interrupts are DISABLED here.
     cpu.ime = false
-    cpu.call()
-    cpu.pc = address
+    cpu.call(address)
     result.tClock += 20
     result.mClock += 5
     case flagBit:
