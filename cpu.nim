@@ -18,6 +18,12 @@ proc readWord(cpu: CPU; address: uint16): uint16 =
   word = bitor(word, cpu.mem.gameboy.readByte(address))
   return word
 
+proc writeWord(cpu: var CPU; address: uint16, word: uint16): void =
+  var tempAddress = address
+  cpu.mem.gameboy.writeByte(tempAddress, readLsb(word))
+  tempAddress += 1
+  cpu.mem.gameboy.writeByte(tempAddress, readMsb(word))
+
 proc setMsb(word: var uint16; byte: uint8): uint16 = 
   # Sets the MSB to the new byte
   let tmpWord:uint16 = byte
@@ -31,18 +37,37 @@ proc setLsb(word: var uint16; byte: uint8): uint16 =
   word.setMask(byte)
   return word
 
-proc push(cpu: var CPU; address: uint16; value: uint8): void =
-  # Push onto the stack. This does NOT calculate any cycles for this.
-  cpu.mem.gameboy.writeByte(address, readLsb(cpu.pc))
+proc pushByte(cpu: var CPU; value: uint8): void =
+  # Push byte onto the stack. This does NOT calculate any cycles for this.
   cpu.sp -= 1
-  cpu.mem.gameboy.writeByte(address, readMsb(cpu.pc))
+  cpu.mem.gameboy.writeByte(cpu.sp, value)
+  
+proc popByte(cpu: var CPU): uint8 =
+  # Pop byte from the stack. This does NOT calculate any cycles for this.
+  var value = cpu.mem.gameboy.readByte(cpu.sp)
+  cpu.sp += 1
+  return value
+  
+proc pushWord(cpu: var CPU; value: uint16): void =
+  # Push word onto the stack. This does NOT calculate any cycles for this.
+  cpu.pushByte(readLsb(value))
+  cpu.pushByte(readMsb(value))
+  
+proc popWord(cpu: var CPU): uint16 =
+  # Pop word from the stack. This does NOT calculate any cycles for this.
+  var value: uint16 = 0
+  value = setMsb(value, cpu.popByte())
+  value = setLsb(value, cpu.popByte())
+  return value
+  
+proc call(cpu: var CPU, address: uint16): void =
+  # Push onto the stack. This does NOT calculate any cycles for this.
+  cpu.pushWord(cpu.pc)
+  cpu.pc = address
 
-proc call(cpu: var CPU): void =
+proc ret(cpu: var CPU): void =
   # Push onto the stack. This does NOT calculate any cycles for this.
-  cpu.sp -= 1
-  cpu.mem.gameboy.writeByte(cpu.sp, readLsb(cpu.pc))
-  cpu.sp -= 1
-  cpu.mem.gameboy.writeByte(cpu.sp, readMsb(cpu.pc))
+  cpu.pc = cpu.popWord()
 
 proc setFlagZ(cpu: var CPU; bool: bool): void = 
   if bool:
@@ -80,21 +105,21 @@ proc hFlag(cpu: var CPU): bool =
 proc cFlag(cpu: var CPU): bool =
   return cpu.f.testBit(4)
 
-proc isAddCarry(a: uint8; b: uint8): bool = 
-  let x = int(a) + int(b) # Cast, otherwise it will overflow
-  result = x > 0xFF
+proc isAddCarry(a: uint8; b: uint8, usedCarry: uint8): bool = 
+  let x = int(a) + int(b) + int(usedCarry) # Cast, otherwise it will overflow
+  result = x.bitand(0x100) == 0x100
 
-proc isSubCarry(a: uint8; b: uint8): bool = 
-  let x = int(a) + int(b) # Cast, otherwise it will be unsigned
-  result = x < 0
+proc isSubCarry(a: uint8; b: uint8, usedCarry: uint8): bool = 
+  let x = int(a) + int(b) + int(usedCarry) # Cast, otherwise it will be unsigned
+  result = x.bitand(0x100) == 0x00
 
-proc isAddHalfCarry(a: uint8; b: uint8): bool =
+proc isAddHalfCarry(a: uint8; b: uint8, usedCarry: uint8): bool =
   # Deterimines if bit4 was carried during addition
-  result = bitand(a.bitand(0xF) + b.bitand(0xF), 0x10) == 0x10
+  result = bitand(a.bitand(0xF) + b.bitand(0xF) + usedCarry.bitand(0xF), 0x10) == 0x10
 
-proc isSubHalfCarry(a: uint8; b: uint8): bool =
+proc isSubHalfCarry(a: uint8; b: uint8, usedCarry: uint8): bool =
   # Deterimines if bit4 was carried during subtraction
-  result = bitand(a.bitand(0xF) - b.bitand(0xF), 0x10) < 0
+  result = bitand(a.bitand(0xF) + b.bitand(0xF) + usedCarry.bitand(0xF), 0x10) == 0x00
 
 proc opOr(cpu: var CPU; value: uint8): void = 
   # Executes an OR operation on the A Register
@@ -120,51 +145,69 @@ proc opXor(cpu: var CPU; value: uint8): void =
   cpu.a = bitxor(cpu.a, value)
   cpu.setFlagZ(0 == cpu.a)
 
+proc doAdd(cpu: var CPU, value1: uint8, value2: uint8, throughCarry: bool):uint8 =
+  var usedCarry: uint8 = 0
+  if cpu.cFlag and throughCarry:
+    usedcarry = 1
+
+  cpu.setFlagH(isAddHalfCarry(value1, value2, usedcarry))
+  cpu.setFlagC(isAddCarry(value1, value2, usedcarry))
+  result = value1 + value2 + usedcarry;
+
 proc opAdd(cpu: var CPU; value: uint8): void = 
   # Executes add on the A Register
   cpu.setFlagN(false)
-  cpu.setFlagH(isAddHalfCarry(cpu.a, value))
-  cpu.setFlagC(isAddCarry(cpu.a, value))
-  cpu.a = cpu.a + value;
+  cpu.a = cpu.doAdd(cpu.a, value, false)
   cpu.setFlagZ(0 == cpu.a)
 
 proc opAdc(cpu: var CPU; value: uint8): void = 
-  var tmp = value
   # Executes add on the A Register + Carry if set
-  if cpu.cFlag: tmp += 1
   cpu.setFlagN(false)
-  cpu.setFlagH(isAddHalfCarry(cpu.a, tmp))
-  cpu.setFlagC(isAddCarry(cpu.a, tmp))
-  cpu.a = cpu.a + tmp;
+  cpu.a = cpu.doAdd(cpu.a, value, true)
   cpu.setFlagZ(0 == cpu.a)
+
+proc doSub(cpu: var CPU, value1: uint8, value2: uint8, throughCarry: bool):uint8 =
+  var ones = not(value2)
+  var usedCarry: uint8 = 1
+  if cpu.cFlag and throughCarry:
+    usedcarry = 0
+
+  cpu.setFlagH(isSubHalfCarry(value1, ones, usedcarry))
+  cpu.setFlagC(isSubCarry(value1, ones, usedcarry))
+  result = value1 + ones + usedcarry;
 
 proc opSub(cpu: var CPU; value: uint8): void = 
   # Executes substration on the A Register
   cpu.setFlagN(true)
-  cpu.setFlagH(isSubHalfCarry(cpu.a, value))
-  cpu.setFlagC(isSubCarry(cpu.a, value))
-  cpu.a = cpu.a - value;
+  cpu.a = cpu.doSub(cpu.a, value, false)
   cpu.setFlagZ(0 == cpu.a)
 
 proc opSbc(cpu: var CPU; value: uint8): void = 
-  var tmp = value
   # Executes substration on the A Register - Carry Flag
-  if cpu.cFlag: tmp += 1 # Carry is an additional decrement later
   cpu.setFlagN(true)
-  cpu.setFlagH(isSubHalfCarry(cpu.a, tmp))
-  cpu.setFlagC(isSubCarry(cpu.a, tmp))
-  cpu.a = cpu.a - tmp;
+  cpu.a = cpu.doSub(cpu.a, value, true)
   cpu.setFlagZ(0 == cpu.a)
 
 proc opCp(cpu: var CPU; value: uint8): void = 
   # Compares A to value, this is essentially subtract with ignored results
-  let tmpA = cpu.a
   cpu.setFlagN(true)
-  cpu.setFlagH(isSubHalfCarry(tmpA, value))
-  cpu.setFlagC(isSubCarry(tmpA, value))
-  cpu.setFlagZ(0 == tmpA - value)
+  let tmpA = cpu.doSub(cpu.a, value, false)
+  cpu.setFlagZ(0 == tmpA)
 
 template toSigned(x: uint8): int8 = cast[int8](x)
+
+proc execute_cb (cpu: var CPU; opcode: uint8): TickResult =
+  # Executes a single CPU Opcode
+  case opcode
+  # of 0x00:
+  #   cpu.pc += 2
+  #   result.tClock = 8
+  #   result.mClock = 2
+  #   result.debugStr = "RLC B"
+  else:
+    result.tClock = 0
+    result.mClock = 0
+    result.debugStr = "UNKNOWN 0xCB OPCODE: " & $toHex(opcode)
 
 proc execute (cpu: var CPU; opcode: uint8): TickResult =
   # Executes a single CPU Opcode
@@ -176,8 +219,8 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.debugStr = "NOP"
   of 0x01:
     let word = cpu.readWord(cpu.pc + 1) # Decode only
-    cpu.bc = setLsb(cpu.hl, cpu.mem.gameboy.readByte(cpu.pc + 1))
-    cpu.bc = setMsb(cpu.hl, cpu.mem.gameboy.readByte(cpu.pc + 2))
+    cpu.bc = setLsb(cpu.bc, cpu.mem.gameboy.readByte(cpu.pc + 1))
+    cpu.bc = setMsb(cpu.bc, cpu.mem.gameboy.readByte(cpu.pc + 2))
     cpu.pc += 3
     result.tClock = 12
     result.mClock = 3
@@ -196,10 +239,11 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.debugStr = "INC BC"
   of 0x04:
     # Note that Carry is NOT set on this operation
+    var oldcarry = cpu.cFlag()
     var tmp = readMsb(cpu.bc)
-    cpu.setFlagN(true)
-    cpu.setFlagH(isAddHalfCarry(tmp, 1))
-    tmp = tmp + 1;
+    tmp = cpu.doAdd(tmp,1,false)
+    cpu.setFlagC(oldcarry)
+    cpu.setFlagN(false)
     cpu.setFlagZ(0 == tmp)
     cpu.bc = setMsb(cpu.bc, tmp)
     cpu.pc += 1
@@ -208,10 +252,11 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.debugStr = "INC B"
   of 0x05:
     # Note that Carry is NOT set on this operation
+    var oldcarry = cpu.cFlag()
     var tmp = readMsb(cpu.bc)
+    tmp = cpu.doSub(tmp,1,false)
+    cpu.setFlagC(oldcarry)
     cpu.setFlagN(true)
-    cpu.setFlagH(isSubHalfCarry(tmp, 1))
-    tmp = tmp - 1;
     cpu.setFlagZ(0 == tmp)
     cpu.bc = setMsb(cpu.bc, tmp)
     cpu.pc += 1
@@ -225,6 +270,23 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "LD B " & $toHex(byte)
+  of 0x08:
+    let address = cpu.readWord(cpu.pc + 1) 
+    cpu.writeWord(address, cpu.sp)
+    cpu.pc += 3
+    result.tClock = 20
+    result.mClock = 5
+    result.debugStr = "LD  (" & $toHex(address) & ") SP"
+  of 0x09:
+    var byte: uint8 = cpu.doAdd(readLsb(cpu.hl), readLsb(cpu.bc), false)
+    cpu.hl = setLsb(cpu.hl, byte)
+    byte = cpu.doAdd(readMsb(cpu.hl), readMsb(cpu.bc), true)
+    cpu.hl = setMsb(cpu.hl, byte)
+    cpu.setFlagN(true)
+    cpu.pc += 1
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "ADD HL BC"
   of 0x0A:
     cpu.a = cpu.mem.gameboy.readByte(cpu.bc)
     cpu.pc += 1
@@ -241,7 +303,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     # Note that Carry is NOT set on this operation
     var tmp = readLsb(cpu.bc)
     cpu.setFlagN(true)
-    cpu.setFlagH(isAddHalfCarry(tmp, 1))
+    cpu.setFlagH(isAddHalfCarry(tmp, 1, 0))
     tmp = tmp + 1;
     cpu.setFlagZ(0 == tmp)
     cpu.bc = setLsb(cpu.bc, tmp)
@@ -252,8 +314,10 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
   of 0x0D:
     # Note that Carry is NOT set on this operation
     var tmp = readLsb(cpu.bc)
+    var one: uint8 = 1
+    var onec = not(one)
     cpu.setFlagN(true)
-    cpu.setFlagH(isSubHalfCarry(tmp, 1))
+    cpu.setFlagH(isSubHalfCarry(tmp, onec, 0))
     tmp = tmp - 1;
     cpu.setFlagZ(0 == tmp)
     cpu.bc = setLsb(cpu.bc, tmp)
@@ -298,7 +362,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     # Note that Carry is NOT set on this operation
     var tmp = readMsb(cpu.de)
     cpu.setFlagN(true)
-    cpu.setFlagH(isAddHalfCarry(tmp, 1))
+    cpu.setFlagH(isAddHalfCarry(tmp, 1, 0))
     tmp = tmp + 1;
     cpu.setFlagZ(0 == tmp)
     cpu.de = setMsb(cpu.de, tmp)
@@ -309,8 +373,10 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
   of 0x15:
     # Note that Carry is NOT set on this operation
     var tmp = readMsb(cpu.de)
+    var one: uint8 = 1
+    var onec = not(one)
     cpu.setFlagN(true)
-    cpu.setFlagH(isSubHalfCarry(tmp, 1))
+    cpu.setFlagH(isSubHalfCarry(tmp, onec, 0))
     tmp = tmp - 1;
     cpu.setFlagZ(0 == tmp)
     cpu.de = setMsb(cpu.de, tmp)
@@ -325,6 +391,16 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "LD D " & $toHex(byte)
+  of 0x19:
+    var byte: uint8 = cpu.doAdd(readLsb(cpu.hl), readLsb(cpu.de), false)
+    cpu.hl = setLsb(cpu.hl, byte)
+    byte = cpu.doAdd(readMsb(cpu.hl), readMsb(cpu.de), true)
+    cpu.hl = setMsb(cpu.hl, byte)
+    cpu.setFlagN(true)
+    cpu.pc += 1
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "ADD HL DE"
   of 0x1A:
     cpu.a = cpu.mem.gameboy.readByte(cpu.de)
     cpu.pc += 1
@@ -341,7 +417,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     # Note that Carry is NOT set on this operation
     var tmp = readLsb(cpu.de)
     cpu.setFlagN(true)
-    cpu.setFlagH(isAddHalfCarry(tmp, 1))
+    cpu.setFlagH(isAddHalfCarry(tmp, 1, 0))
     tmp = tmp + 1;
     cpu.setFlagZ(0 == tmp)
     cpu.de = setLsb(cpu.de, tmp)
@@ -352,8 +428,10 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
   of 0x1D:
     # Note that Carry is NOT set on this operation
     var tmp = readLsb(cpu.de)
+    var one: uint8 = 1
+    var onec = not(one)
     cpu.setFlagN(true)
-    cpu.setFlagH(isSubHalfCarry(tmp, 1))
+    cpu.setFlagH(isSubHalfCarry(tmp, onec, 0))
     tmp = tmp - 1;
     cpu.setFlagZ(0 == tmp)
     cpu.de = setLsb(cpu.de, tmp)
@@ -405,7 +483,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     # Note that Carry is NOT set on this operation
     var tmp = readMsb(cpu.hl)
     cpu.setFlagN(true)
-    cpu.setFlagH(isAddHalfCarry(tmp, 1))
+    cpu.setFlagH(isAddHalfCarry(tmp, 1, 0))
     tmp = tmp + 1;
     cpu.setFlagZ(0 == tmp)
     cpu.hl = setMsb(cpu.hl, tmp)
@@ -416,8 +494,10 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
   of 0x25:
     # Note that Carry is NOT set on this operation
     var tmp = readMsb(cpu.hl)
+    var one: uint8 = 1
+    var onec = not(one)
     cpu.setFlagN(true)
-    cpu.setFlagH(isSubHalfCarry(tmp, 1))
+    cpu.setFlagH(isSubHalfCarry(tmp, onec, 0))
     tmp = tmp - 1;
     cpu.setFlagZ(0 == tmp)
     cpu.hl = setMsb(cpu.hl, tmp)
@@ -432,6 +512,16 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "LD H " & $toHex(byte)
+  of 0x29:
+    var byte: uint8 = cpu.doAdd(readLsb(cpu.hl), readLsb(cpu.hl), false)
+    cpu.hl = setLsb(cpu.hl, byte)
+    byte = cpu.doAdd(readMsb(cpu.hl), readMsb(cpu.hl), true)
+    cpu.hl = setMsb(cpu.hl, byte)
+    cpu.setFlagN(true)
+    cpu.pc += 1
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "ADD HL HL"
   of 0x2A:
     cpu.a = cpu.mem.gameboy.readByte(cpu.hl)
     cpu.hl += 1
@@ -449,7 +539,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     # Note that Carry is NOT set on this operation
     var tmp = readLsb(cpu.hl)
     cpu.setFlagN(true)
-    cpu.setFlagH(isAddHalfCarry(tmp, 1))
+    cpu.setFlagH(isAddHalfCarry(tmp, 1, 0))
     tmp = tmp + 1;
     cpu.setFlagZ(0 == tmp)
     cpu.hl = setLsb(cpu.hl, tmp)
@@ -460,8 +550,10 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
   of 0x2D:
     # Note that Carry is NOT set on this operation
     var tmp = readLsb(cpu.hl)
+    var one: uint8 = 1
+    var onec = not(one)
     cpu.setFlagN(true)
-    cpu.setFlagH(isSubHalfCarry(tmp, 1))
+    cpu.setFlagH(isSubHalfCarry(tmp, onec, 0))
     tmp = tmp - 1;
     cpu.setFlagZ(0 == tmp)
     cpu.hl = setLsb(cpu.hl, tmp)
@@ -500,7 +592,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     # Note that Carry is NOT set on this operation
     var tmp = cpu.mem.gameboy.readByte(cpu.hl)
     cpu.setFlagN(true)
-    cpu.setFlagH(isAddHalfCarry(tmp, 1))
+    cpu.setFlagH(isAddHalfCarry(tmp, 1, 0))
     tmp = tmp + 1;
     cpu.setFlagZ(0 == tmp)
     cpu.mem.gameboy.writeByte(cpu.hl, tmp)
@@ -511,8 +603,10 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
   of 0x35:
     # Note that Carry is NOT set on this operation
     var tmp = cpu.mem.gameboy.readByte(cpu.hl)
+    var one: uint8 = 1
+    var onec = not(one)
     cpu.setFlagN(true)
-    cpu.setFlagH(isSubHalfCarry(tmp, 1))
+    cpu.setFlagH(isSubHalfCarry(tmp, onec, 0))
     tmp = tmp - 1;
     cpu.setFlagZ(0 == tmp)
     cpu.mem.gameboy.writeByte(cpu.hl, tmp)
@@ -527,6 +621,16 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.tClock = 12
     result.mClock = 4
     result.debugStr = "LD (HL) " & $toHex(byte)
+  of 0x39:
+    var byte: uint8 = cpu.doAdd(readLsb(cpu.hl), readLsb(cpu.sp), false)
+    cpu.hl = setLsb(cpu.hl, byte)
+    byte = cpu.doAdd(readMsb(cpu.hl), readMsb(cpu.sp), true)
+    cpu.hl = setMsb(cpu.hl, byte)
+    cpu.setFlagN(true)
+    cpu.pc += 1
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "ADD HL SP"
   of 0x3A:
     cpu.a = cpu.mem.gameboy.readByte(cpu.hl)
     cpu.hl -= 1
@@ -544,7 +648,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     # Note that Carry is NOT set on this operation
     var tmp = cpu.a
     cpu.setFlagN(true)
-    cpu.setFlagH(isAddHalfCarry(tmp, 1))
+    cpu.setFlagH(isAddHalfCarry(tmp, 1, 0))
     tmp = tmp + 1;
     cpu.setFlagZ(0 == tmp)
     cpu.a = tmp
@@ -555,8 +659,10 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
   of 0x3D:
     # Note that Carry is NOT set on this operation
     var tmp = cpu.a
+    var one: uint8 = 1
+    var onec = not(one)
     cpu.setFlagN(true)
-    cpu.setFlagH(isSubHalfCarry(tmp, 1))
+    cpu.setFlagH(isSubHalfCarry(tmp, onec, 0))
     tmp = tmp - 1;
     cpu.setFlagZ(0 == tmp)
     cpu.a = tmp
@@ -1002,9 +1108,9 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 1
     result.debugStr = "ADD L"
   of 0x86: 
-    let value = cpu.mem.gameboy.readbyte(cpu.pc + 1)
+    let value = cpu.mem.gameboy.readbyte(cpu.hl)
     cpu.opAdd(value)
-    cpu.pc += 2
+    cpu.pc += 1
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "ADD (HL)"  & $toHex(value)
@@ -1016,7 +1122,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.debugStr = "ADD A"
   of 0x88:
     cpu.pc += 1
-    cpu.opAdc(readMsb(cpu.hl))
+    cpu.opAdc(readMsb(cpu.bc))
     result.tClock = 4
     result.mClock = 1
     result.debugStr = "ADC B"
@@ -1051,9 +1157,9 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 1
     result.debugStr = "ADC L"
   of 0x8E: 
-    let value = cpu.mem.gameboy.readbyte(cpu.pc + 1)
+    let value = cpu.mem.gameboy.readbyte(cpu.hl)
     cpu.opAdc(value)
-    cpu.pc += 2
+    cpu.pc += 1
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "ADC (HL)"  & $toHex(value)
@@ -1100,9 +1206,9 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 1
     result.debugStr = "SUB L"
   of 0x96: 
-    let value = cpu.mem.gameboy.readbyte(cpu.pc + 1)
+    let value = cpu.mem.gameboy.readbyte(cpu.hl)
     cpu.opSub(value)
-    cpu.pc += 2
+    cpu.pc += 1
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "SUB (HL)"  & $toHex(value)
@@ -1114,7 +1220,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.debugStr = "SUB A"
   of 0x98:
     cpu.pc += 1
-    cpu.opSbc(readMsb(cpu.hl))
+    cpu.opSbc(readMsb(cpu.bc))
     result.tClock = 4
     result.mClock = 1
     result.debugStr = "SBC B"
@@ -1149,9 +1255,9 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 1
     result.debugStr = "SBC L"
   of 0x9E: 
-    let value = cpu.mem.gameboy.readbyte(cpu.pc + 1)
+    let value = cpu.mem.gameboy.readbyte(cpu.hl)
     cpu.opSbc(value)
-    cpu.pc += 2
+    cpu.pc += 1
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "SBC (HL)"  & $toHex(value)
@@ -1198,9 +1304,9 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 1
     result.debugStr = "AND L"
   of 0xA6: 
-    let value = cpu.mem.gameboy.readbyte(cpu.pc + 1)
+    let value = cpu.mem.gameboy.readbyte(cpu.hl)
     cpu.opAnd(value)
-    cpu.pc += 2
+    cpu.pc += 1
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "AND (HL)"  & $toHex(value)
@@ -1212,7 +1318,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.debugStr = "AND A"
   of 0xA8:
     cpu.pc += 1
-    cpu.opXor(readMsb(cpu.hl))
+    cpu.opXor(readMsb(cpu.bc))
     result.tClock = 4
     result.mClock = 1
     result.debugStr = "XOR B"
@@ -1247,9 +1353,9 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 1
     result.debugStr = "XOR L"
   of 0xAE: 
-    let value = cpu.mem.gameboy.readbyte(cpu.pc + 1)
+    let value = cpu.mem.gameboy.readbyte(cpu.hl)
     cpu.opXor(value)
-    cpu.pc += 2
+    cpu.pc += 1
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "XOR (HL)"  & $toHex(value)
@@ -1296,9 +1402,9 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 1
     result.debugStr = "OR L"
   of 0xB6: 
-    let value = cpu.mem.gameboy.readbyte(cpu.pc + 1)
+    let value = cpu.mem.gameboy.readbyte(cpu.hl)
     cpu.opOr(value)
-    cpu.pc += 2
+    cpu.pc += 1
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "OR (HL)"  & $toHex(value)
@@ -1310,7 +1416,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.debugStr = "OR A"
   of 0xB8:
     cpu.pc += 1
-    cpu.opCp(readMsb(cpu.hl))
+    cpu.opCp(readMsb(cpu.bc))
     result.tClock = 4
     result.mClock = 1
     result.debugStr = "CP B"
@@ -1345,9 +1451,9 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 1
     result.debugStr = "CP L"
   of 0xBE: 
-    let value = cpu.mem.gameboy.readbyte(cpu.pc + 1)
+    let value = cpu.mem.gameboy.readbyte(cpu.hl)
     cpu.opCp(value)
-    cpu.pc += 2
+    cpu.pc += 1
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "CP (HL)"  & $toHex(value)
@@ -1357,18 +1463,60 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.tClock = 4
     result.mClock = 1
     result.debugStr = "CP A"
+  of 0xC0:
+    cpu.pc += 1
+    if not cpu.zFlag:
+      cpu.ret()
+      result.tClock = 20
+      result.mClock = 5
+      result.debugStr = "RET NZ"
+    else:
+      result.tClock = 8
+      result.mClock = 2
+      result.debugStr = "RET NZ (missed)"
+  of 0XC1:
+    cpu.bc = cpu.popWord()
+    cpu.pc += 1
+    result.tClock = 12
+    result.mClock = 3
+    result.debugStr = "POP BC " & $toHex(cpu.sp) & " (" & $toHex(cpu.bc) & ")"
+  of 0xC2:
+    var word: uint16
+    word = setMsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 1))
+    word = setLsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 2))
+    cpu.pc += 3
+    if not cpu.zFlag:
+      cpu.ret()
+      result.tClock = 16
+      result.mClock = 4
+      result.debugStr = "JP NZ, (" & $toHex(word) & ")"
+    else:
+      result.tClock = 12
+      result.mClock = 3
+      result.debugStr = "JP NZ (missed)"
   of 0xC3:
     let word = cpu.readWord(cpu.pc + 1)
     cpu.pc = word
     result.tClock = 16
     result.mClock = 4
     result.debugStr = "JP " & $toHex(word)
+  of 0xC4:
+    var word: uint16
+    word = setMsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 1))
+    word = setLsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 2))
+    cpu.pc += 3 # We increment BEFORE we call. The RET should be the instruction AFTER this one.
+    if not cpu.zFlag:
+      cpu.call(word)
+      result.tClock = 24
+      result.mClock = 6
+      result.debugStr = "CALL NZ, (" & $toHex(word) & ")"
+    else:
+      result.tClock = 12
+      result.mClock = 3
+      result.debugStr = "CALL NZ, (missed)"
   of 0xC5:
     cpu.pc += 1
-    cpu.sp -= 1
-    cpu.mem.gameboy.writeByte(cpu.sp, readMsb(cpu.bc))
-    cpu.sp -= 1
-    cpu.mem.gameboy.writeByte(cpu.sp, readLsb(cpu.bc))
+    cpu.pushWord(cpu.bc)
     result.tClock = 16
     result.mClock = 4
     result.debugStr = "PUSH BC " & $toHex(cpu.sp) & " (" & $toHex(cpu.bc) & ")"
@@ -1380,19 +1528,38 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 2
     result.debugStr = "ADD A " & $toHex(byte)
   of 0xC7:
-    cpu.call()
-    cpu.pc = 0x00
+    cpu.pc += 1
+    cpu.call(0x00)
     result.tClock = 16
     result.mClock = 4
     result.debugStr = "RST 00"
+  of 0xC8:
+    cpu.pc += 1
+    if cpu.zFlag:
+      cpu.ret()
+      result.tClock = 20
+      result.mClock = 5
+      result.debugStr = "RET Z"
+    else:
+      result.tClock = 8
+      result.mClock = 2
+      result.debugStr = "RET Z (missed)"
+  of 0xC9:
+    cpu.ret()
+    result.tClock = 16
+    result.mClock = 4
+    result.debugStr = "RET"
+  of 0xCB:
+    let cb_opcode = cpu.mem.gameboy.readbyte(cpu.pc + 1)
+    result = cpu.execute_cb(cb_opcode)
+
   of 0xCC:
     var word: uint16
     word = setMsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 1))
     word = setLsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 2))
-    cpu.pc += 2 # We increment BEFORE we call. The RET should be the instruction AFTER this one.
+    cpu.pc += 3 # We increment BEFORE we call. The RET should be the instruction AFTER this one.
     if cpu.zFlag:
-      cpu.call()
-      cpu.pc = word
+      cpu.call(word)
       result.tClock = 24
       result.mClock = 6
       result.debugStr = "CALL Z, (" & $toHex(word) & ")"
@@ -1404,9 +1571,8 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     var word: uint16
     word = setMsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 1))
     word = setLsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 2))
-    cpu.pc += 2 # We increment BEFORE we call. The RET should be the instruction AFTER this one.
-    cpu.call()
-    cpu.pc = word
+    cpu.pc += 3 # We increment BEFORE we call. The RET should be the instruction AFTER this one.
+    cpu.call(word)
     result.tClock = 24
     result.mClock = 6
     result.debugStr = "CALL (" & $toHex(word) & ")"
@@ -1418,17 +1584,59 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 2
     result.debugStr = "ADC A " & $toHex(byte)
   of 0xCF:
-    cpu.call()
-    cpu.pc = 0x08
+    cpu.pc += 1
+    cpu.call(0x08)
     result.tClock = 16
     result.mClock = 4
     result.debugStr = "RST 08"
+  of 0xD0:
+    cpu.pc += 1
+    if not cpu.cFlag:
+      cpu.ret()
+      result.tClock = 20
+      result.mClock = 5
+      result.debugStr = "RET NC"
+    else:
+      result.tClock = 8
+      result.mClock = 2
+      result.debugStr = "RET NC (missed)"
+  of 0XD1:
+    cpu.de = cpu.popWord()
+    cpu.pc += 1
+    result.tClock = 12
+    result.mClock = 3
+    result.debugStr = "POP DE " & $toHex(cpu.sp) & " (" & $toHex(cpu.de) & ")"
+  of 0xD2:
+    var word: uint16
+    word = setMsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 1))
+    word = setLsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 2))
+    cpu.pc += 3
+    if not cpu.cFlag:
+      cpu.ret()
+      result.tClock = 16
+      result.mClock = 4
+      result.debugStr = "JP NC, (" & $toHex(word) & ")"
+    else:
+      result.tClock = 12
+      result.mClock = 3
+      result.debugStr = "JP NC (missed)"
+  of 0xD4:
+    var word: uint16
+    word = setMsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 1))
+    word = setLsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 2))
+    cpu.pc += 3 # We increment BEFORE we call. The RET should be the instruction AFTER this one.
+    if not cpu.cFlag:
+      cpu.call(word)
+      result.tClock = 24
+      result.mClock = 6
+      result.debugStr = "CALL NC, (" & $toHex(word) & ")"
+    else:
+      result.tClock = 12
+      result.mClock = 3
+      result.debugStr = "CALL NC, (missed)"
   of 0xD5:
     cpu.pc += 1
-    cpu.sp -= 1
-    cpu.mem.gameboy.writeByte(cpu.sp, readMsb(cpu.de))
-    cpu.sp -= 1
-    cpu.mem.gameboy.writeByte(cpu.sp, readLsb(cpu.de))
+    cpu.pushWord(cpu.de)
     result.tClock = 16
     result.mClock = 4
     result.debugStr = "PUSH DE " & $toHex(cpu.sp) & " (" & $toHex(cpu.de) & ")"
@@ -1440,19 +1648,29 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 2
     result.debugStr = "SUB A " & $toHex(byte)
   of 0xD7:
-    cpu.call()
-    cpu.pc = 0x10
+    cpu.pc += 1
+    cpu.call(0x10)
     result.tClock = 16
     result.mClock = 4
     result.debugStr = "RST 10"
+  of 0xD8:
+    cpu.pc += 1
+    if cpu.cFlag:
+      cpu.ret()
+      result.tClock = 20
+      result.mClock = 5
+      result.debugStr = "RET C"
+    else:
+      result.tClock = 8
+      result.mClock = 2
+      result.debugStr = "RET C (missed)"
   of 0xDC:
     var word: uint16
     word = setMsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 1))
     word = setLsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 2))
-    cpu.pc += 2 # We increment BEFORE we call. The RET should be the instruction AFTER this one.
+    cpu.pc += 3 # We increment BEFORE we call. The RET should be the instruction AFTER this one.
     if cpu.cFlag:
-      cpu.call()
-      cpu.pc = word
+      cpu.call(word)
       result.tClock = 24
       result.mClock = 6
       result.debugStr = "CALL C, (" & $toHex(word) & ")"
@@ -1468,8 +1686,8 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 2
     result.debugStr = "SBC A " & $toHex(byte)
   of 0xDF:
-    cpu.call()
-    cpu.pc = 0x18
+    cpu.pc += 1
+    cpu.call(0x18)
     result.tClock = 16
     result.mClock = 4
     result.debugStr = "RST 18"
@@ -1481,12 +1699,23 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.tClock = 12
     result.mClock = 3
     result.debugStr = "LD " & $toHex(word) & " A (" & $toHex(cpu.a) & ")"
+  of 0XE1:
+    cpu.hl = cpu.popWord()
+    cpu.pc += 1
+    result.tClock = 12
+    result.mClock = 3
+    result.debugStr = "POP HL " & $toHex(cpu.sp) & " (" & $toHex(cpu.hl) & ")"
+  of 0xE2:
+    var address = 0xFF00'u16
+    address = bitOr(address, uint16(readLsb(cpu.bc)))
+    cpu.mem.gameboy.writeByte(address, cpu.a)
+    cpu.pc += 1
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "LD (C) A"
   of 0xE5:
     cpu.pc += 1
-    cpu.sp -= 1
-    cpu.mem.gameboy.writeByte(cpu.sp, readMsb(cpu.hl))
-    cpu.sp -= 1
-    cpu.mem.gameboy.writeByte(cpu.sp, readLsb(cpu.hl))
+    cpu.pushWord(cpu.hl)
     result.tClock = 16
     result.mClock = 4
     result.debugStr = "PUSH HL " & $toHex(cpu.sp) & " (" & $toHex(cpu.hl) & ")"
@@ -1498,8 +1727,8 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 2
     result.debugStr = "AND A " & $toHex(byte)
   of 0xE7:
-    cpu.call()
-    cpu.pc = 0x10
+    cpu.pc += 1
+    cpu.call(0x20)
     result.tClock = 16
     result.mClock = 4
     result.debugStr = "RST 20"
@@ -1520,8 +1749,8 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 2
     result.debugStr = "XOR A " & $toHex(byte)
   of 0xEF:
-    cpu.call()
-    cpu.pc = 0x28
+    cpu.pc += 1
+    cpu.call(0x28)
     result.tClock = 16
     result.mClock = 4
     result.debugStr = "RST 28"
@@ -1534,6 +1763,21 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.tClock = 12
     result.mClock = 3
     result.debugStr = "LD A " & $toHex(word) & " (" & $toHex(cpu.a) & ")"
+  of 0XF1:
+    cpu.f = cpu.popByte()
+    cpu.a = cpu.popByte()
+    cpu.pc += 1
+    result.tClock = 12
+    result.mClock = 3
+    result.debugStr = "POP AF " & $toHex(cpu.sp) & " (" & $toHex(cpu.a) & $toHex(cpu.f) & ")"
+  of 0xF2:
+    var address = 0xFF00'u16
+    address = bitOr(address, uint16(readLsb(cpu.bc)))
+    cpu.a = cpu.mem.gameboy.readByte(address)
+    cpu.pc += 1
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "LD A (C)"
   of 0xF3:
     cpu.pc += 1
     cpu.ime = false # Interrupts are immediately disabled!
@@ -1542,10 +1786,8 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.debugStr = "DI"
   of 0xF5:
     cpu.pc += 1
-    cpu.sp -= 1
-    cpu.mem.gameboy.writeByte(cpu.sp, cpu.a)
-    cpu.sp -= 1
-    cpu.mem.gameboy.writeByte(cpu.sp, cpu.f)
+    cpu.pushByte(cpu.a)
+    cpu.pushByte(cpu.f)
     result.tClock = 16
     result.mClock = 4
     result.debugStr = "PUSH AF " & $toHex(cpu.sp) & " (" & $toHex(cpu.a) & $toHex(cpu.f) & ")"
@@ -1557,8 +1799,8 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 2
     result.debugStr = "OR A " & $toHex(byte)
   of 0xF7:
-    cpu.call()
-    cpu.pc = 0x10
+    cpu.pc += 1
+    cpu.call(0x30)
     result.tClock = 16
     result.mClock = 4
     result.debugStr = "RST 30"
@@ -1576,8 +1818,8 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 2
     result.debugStr = "CP A " & $toHex(byte)
   of 0xFF:
-    cpu.call()
-    cpu.pc = 0x38
+    cpu.pc += 1
+    cpu.call(0x38)
     result.tClock = 16
     result.mClock = 4
     result.debugStr = "RST 38"
@@ -1585,7 +1827,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.tClock = 0
     result.mClock = 0
     result.debugStr = "UNKNOWN OPCODE: " & $toHex(opcode)
-
+    
 proc callInterrupt(cpu: var CPU; address: uint16; flagBit: uint8;): TickResult =
   # Processes the given interrupt. Note that the halt flag is cleared if it is set.
   #
@@ -1600,8 +1842,7 @@ proc callInterrupt(cpu: var CPU; address: uint16; flagBit: uint8;): TickResult =
   if cpu.ime:
     # Clear the interrupt that fired only. Interrupts are DISABLED here.
     cpu.ime = false
-    cpu.call()
-    cpu.pc = address
+    cpu.call(address)
     result.tClock += 20
     result.mClock += 5
     case flagBit:
