@@ -196,6 +196,19 @@ proc opCp(cpu: var CPU; value: uint8): void =
 
 template toSigned(x: uint8): int8 = cast[int8](x)
 
+proc execute_cb (cpu: var CPU; opcode: uint8): TickResult =
+  # Executes a single CPU Opcode
+  case opcode
+  # of 0x00:
+  #   cpu.pc += 2
+  #   result.tClock = 8
+  #   result.mClock = 2
+  #   result.debugStr = "RLC B"
+  else:
+    result.tClock = 0
+    result.mClock = 0
+    result.debugStr = "UNKNOWN 0xCB OPCODE: " & $toHex(opcode)
+
 proc execute (cpu: var CPU; opcode: uint8): TickResult =
   # Executes a single CPU Opcode
   case opcode
@@ -1536,6 +1549,10 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.tClock = 16
     result.mClock = 4
     result.debugStr = "RET"
+  of 0xCB:
+    let cb_opcode = cpu.mem.gameboy.readbyte(cpu.pc + 1)
+    result = cpu.execute_cb(cb_opcode)
+
   of 0xCC:
     var word: uint16
     word = setMsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 1))
@@ -1810,7 +1827,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.tClock = 0
     result.mClock = 0
     result.debugStr = "UNKNOWN OPCODE: " & $toHex(opcode)
-
+    
 proc callInterrupt(cpu: var CPU; address: uint16; flagBit: uint8;): TickResult =
   # Processes the given interrupt. Note that the halt flag is cleared if it is set.
   #
