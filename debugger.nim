@@ -1,3 +1,4 @@
+import deques
 import parseutils
 import strutils
 import terminal
@@ -244,9 +245,9 @@ proc drawPpuMode(ppu: PPU) =
   setCursorPos(70,9)
   stdout.write(" WY: " & $ppu.wy)
   setCursorPos(70,10)
-  stdout.write("FQD: " & $ppu.fifo.queueDepth)
+  stdout.write("FQD: " & $ppu.fifo.len())
   setCursorPos(70,11)
-  stdout.write(" Lx: " & $ppu.fifo.pixelTransferX)
+  stdout.write(" Lx: " & $ppu.lx)
   setCursorPos(60,12)
   stdout.write("FState: ")
   setCursorPos(70,12)

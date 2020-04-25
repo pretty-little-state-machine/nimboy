@@ -166,6 +166,10 @@ proc hBlankUpdates(ppu: var PPU): void =
   ppu.wy = ppu.requestedWy
   ppu.wx = ppu.requestedWx
 
+
+proc isRefreshed(ppu: PPU): bool =
+  17556 == ppu.clock
+
 proc tick*(ppu: var PPU) =
   # Processes a tick based on the system clock.
   # 
@@ -173,7 +177,7 @@ proc tick*(ppu: var PPU) =
   # (oamSearch -> pixelTransfer -> hBlank) x 144 -> VLBLANK -> Repeat....
   # This takes exactly 17556 machine cycles (ticks) to go through one rotation.
   # Rollover per Video Cycle - End of VBLANK
-  if 17556 == ppu.clock: 
+  if ppu.isRefreshed:
     ppu.ly = 0
     ppu.clock = 0
     for x in ppu.oamBuffer.data.mitems: x = 0 # Flush OAM Buffer

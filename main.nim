@@ -6,10 +6,17 @@ import sdl2
 import os
 import ppu
 import sdl
+import types
+
+const tileDebuggerScale:cint = 1 # Output Scaling
+
+proc limitFrameRate() =
+  if (getTicks() < 17):
+    delay(17 - getTicks())
 
 proc main =
-  #let gbRenderer = getRenderer("Nimboy", 160,144)
-  let tileMapRenderer = getRenderer("Tile Data", 256, 256) # 192 for all sprites
+  let gbRenderer = getRenderer("Nimboy", 160, 144)
+  let tileMapRenderer = getRenderer("Tile Data", 256 * tileDebuggerScale, 256 * tileDebuggerScale)
 
   # Game loop, draws each frame
   var 
@@ -17,13 +24,13 @@ proc main =
     debugger = newDebugger()
     running = true
     evt = sdl2.defaultEvent
-    tmp: uint64
+    refresh: bool
   # Preload tetris
   gb.cartridge.loadRomFile("roms/tetris.gb")
-
+  tileMapRenderer.clear()
+  sleep (3000)
   gb.ppu.fillTestTiles()
   while running:
-    #sleep(100)
     #gbRenderer.clear()
     #gbRenderer.step(gb.ppu)
     #gbRenderer.present()
@@ -32,15 +39,20 @@ proc main =
       if evt.kind == QuitEvent:
         running = false
         break
-    sdl2.delay(1)
-    #debug(gb, debugger)
-    if 0 == tmp mod 512:
-      echo gb.step().debugStr
-      tileMapRenderer.clear()
+    
+    # Only render when shifting from vSync to OAMMode
+    if oamSearch == gb.ppu.mode and true == refresh:
+      refresh = false
       tileMapRenderer.renderMgbTileMap(gb.ppu)
-      #tileMapRenderer.drawTestTile(gb.ppu)
       tileMapRenderer.present()
-    else:
-      discard gb.step().debugStr
-    tmp += 1
+      gbRenderer.step(gb.ppu)
+      gbRenderer.present()
+
+    # Set next OAM to fire off a redraw
+    if vBlank == gb.ppu.mode:
+      refresh = true
+
+    discard gb.step().debugStr
+    #debug(gb, debugger)
+    limitFrameRate()
 main()

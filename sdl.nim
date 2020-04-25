@@ -58,17 +58,15 @@ proc getRenderer*(title: string; width: cint; height: cint): RendererPtr =
   renderer.setDrawColor(r = 255, g = 255, b = 255)
   return renderer
 
-proc step*(renderer: RendererPtr; ppu: PPU): void =
-  discard
-
 proc decodeMgbColor(colorNumber: uint8): PpuColor =
-  # A nice set of psuedo-green colours for Monochrome Gameboy
+  # A nice set of psuedo-green colours for Monochrome Gameboy. Any invalid 
+  # color palette values are rendered in red.
   case colorNumber:
   of 0x03: result.r = 232'u8; result.g = 242'u8; result.b = 223'u8
   of 0x02: result.r = 174'u8; result.g = 194'u8; result.b = 157'u8
   of 0x01: result.r =  98'u8; result.g = 110'u8; result.b = 89'u8
   of 0x00: result.r =  30'u8; result.g =  33'u8; result.b = 27'u8
-  else: result.r = 30'u8; result.g = 33'u8; result.b = 27'u8
+  else: result.r = 255'u8; result.g = 0'u8; result.b = 0'u8
 
 proc byteToMgbPalette(byte: uint8): Palette =
   # Reads the palette register into the four colors
@@ -101,7 +99,7 @@ proc drawSwatch(renderer: RendererPtr; x: cint; y: cint;
       renderer.setDrawColor(r = color.r, g = color.g, b = color.b)
       renderer.drawPoint(cint(i), cint(j))
 
-proc render(renderer: RendererPtr; buffer: DebugBuffer; scale: int = 1): void =
+proc renderDebugBuffer(renderer: RendererPtr; buffer: DebugBuffer; scale: int = 1): void =
   # TODO - Post Procesesing / Scaling
   for yCoord in countup(0, buffer.height):
     for xCoord in countup(0, buffer.width - 1):
@@ -150,7 +148,7 @@ proc renderMgbTileMap*(renderer: RendererPtr; ppu: PPU) =
       xOffset = 0
       yOffset += 1
 
-  renderer.render(debugBuffer)
+  renderer.renderDebugBuffer(debugBuffer)
 
   # Overlay swatches (since the pixel data has been written once)
   renderer.drawSwatch(0, 0, 64, 32, palette[0])
@@ -173,7 +171,7 @@ proc drawTestTile*(renderer: RendererPtr; ppu: PPU): void =
     twoBB[b] = tmp[b]
   var tile = twoBB.decode2bbTile()
   debugBuffer.drawTile(tile, palette, 1, 0)
-  renderer.render(debugBuffer)
+  renderer.renderDebugBuffer(debugBuffer)
 
 proc fillTestTiles*(ppu: var PPU): void = 
   # Fills the PPU Sprite memory with a single test sprite over and over
@@ -183,3 +181,26 @@ proc fillTestTiles*(ppu: var PPU): void =
     for b in countup(0'u16, 0xF): 
        ppu.vRAMTileDataBank0[uint16(tileOffset) + b] = tmp[b]
 
+proc drawPixelEntry(renderer: RendererPtr; ppu: PPU; x: cint; y: cint): void = 
+  # Draws a pixel with the appropriate color palette to the screen.
+  let pfe = ppu.outputBuffer[144 * y + x]
+  var palette: Palette
+  case pfe.entity:
+  of ftBackground:
+    palette = byteToMgbPalette(ppu.bgp)
+  of ftWindow:
+    palette = byteToMgbPalette(ppu.bgp)
+  of ftSprite0:
+    palette = byteToMgbPalette(ppu.obp0)
+  of ftSprite1:
+    palette = byteToMgbPalette(ppu.obp1)
+
+  let color = palette[pfe.data]
+  renderer.setDrawColor(r = color.r, g = color.g, b = color.b)
+  renderer.drawPoint(x, y)
+
+proc step*(renderer: RendererPtr; ppu: PPU): void =
+  # Processes a step in the "real" gameboy.
+  for y in countup(1, 144):
+    for x in countup(1, 160):
+      renderer.drawPixelEntry(ppu, cint(x), cint(y))
