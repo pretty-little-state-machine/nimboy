@@ -1467,12 +1467,40 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.tClock = 12
     result.mClock = 3
     result.debugStr = "POP BC " & $toHex(cpu.sp) & " (" & $toHex(cpu.bc) & ")"
+  of 0xC2:
+    var word: uint16
+    word = setMsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 1))
+    word = setLsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 2))
+    cpu.pc += 3
+    if not cpu.zFlag:
+      cpu.ret()
+      result.tClock = 16
+      result.mClock = 4
+      result.debugStr = "JP NZ, (" & $toHex(word) & ")"
+    else:
+      result.tClock = 12
+      result.mClock = 3
+      result.debugStr = "JP NZ (missed)"
   of 0xC3:
     let word = cpu.readWord(cpu.pc + 1)
     cpu.pc = word
     result.tClock = 16
     result.mClock = 4
     result.debugStr = "JP " & $toHex(word)
+  of 0xC4:
+    var word: uint16
+    word = setMsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 1))
+    word = setLsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 2))
+    cpu.pc += 3 # We increment BEFORE we call. The RET should be the instruction AFTER this one.
+    if not cpu.zFlag:
+      cpu.call(word)
+      result.tClock = 24
+      result.mClock = 6
+      result.debugStr = "CALL NZ, (" & $toHex(word) & ")"
+    else:
+      result.tClock = 12
+      result.mClock = 3
+      result.debugStr = "CALL NZ, (missed)"
   of 0xC5:
     cpu.pc += 1
     cpu.pushWord(cpu.bc)
@@ -1492,6 +1520,17 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.tClock = 16
     result.mClock = 4
     result.debugStr = "RST 00"
+  of 0xC8:
+    cpu.pc += 1
+    if cpu.zFlag:
+      cpu.ret()
+      result.tClock = 20
+      result.mClock = 5
+      result.debugStr = "RET Z"
+    else:
+      result.tClock = 8
+      result.mClock = 2
+      result.debugStr = "RET Z (missed)"
   of 0xC9:
     cpu.ret()
     result.tClock = 16
@@ -1550,6 +1589,34 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.tClock = 12
     result.mClock = 3
     result.debugStr = "POP DE " & $toHex(cpu.sp) & " (" & $toHex(cpu.de) & ")"
+  of 0xD2:
+    var word: uint16
+    word = setMsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 1))
+    word = setLsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 2))
+    cpu.pc += 3
+    if not cpu.cFlag:
+      cpu.ret()
+      result.tClock = 16
+      result.mClock = 4
+      result.debugStr = "JP NC, (" & $toHex(word) & ")"
+    else:
+      result.tClock = 12
+      result.mClock = 3
+      result.debugStr = "JP NC (missed)"
+  of 0xD4:
+    var word: uint16
+    word = setMsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 1))
+    word = setLsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 2))
+    cpu.pc += 3 # We increment BEFORE we call. The RET should be the instruction AFTER this one.
+    if not cpu.cFlag:
+      cpu.call(word)
+      result.tClock = 24
+      result.mClock = 6
+      result.debugStr = "CALL NC, (" & $toHex(word) & ")"
+    else:
+      result.tClock = 12
+      result.mClock = 3
+      result.debugStr = "CALL NC, (missed)"
   of 0xD5:
     cpu.pc += 1
     cpu.pushWord(cpu.de)
@@ -1569,6 +1636,17 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.tClock = 16
     result.mClock = 4
     result.debugStr = "RST 10"
+  of 0xD8:
+    cpu.pc += 1
+    if cpu.cFlag:
+      cpu.ret()
+      result.tClock = 20
+      result.mClock = 5
+      result.debugStr = "RET C"
+    else:
+      result.tClock = 8
+      result.mClock = 2
+      result.debugStr = "RET C (missed)"
   of 0xDC:
     var word: uint16
     word = setMsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 1))
