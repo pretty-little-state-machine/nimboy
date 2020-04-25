@@ -11,8 +11,8 @@ import types
 const tileDebuggerScale:cint = 1 # Output Scaling
 
 proc limitFrameRate() =
-  if (getTicks() < 17):
-    delay(17 - getTicks())
+  if (getTicks() < 30):
+    delay(30 - getTicks())
 
 proc main =
   let gbRenderer = getRenderer("Nimboy", 160, 144)
@@ -52,7 +52,7 @@ proc main =
     if vBlank == gb.ppu.mode:
       refresh = true
 
-    discard gb.step().debugStr
+    echo gb.step().debugStr
     #debug(gb, debugger)
     limitFrameRate()
 main()
