@@ -1555,6 +1555,14 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.tClock = 12
     result.mClock = 3
     result.debugStr = "LD " & $toHex(word) & " A (" & $toHex(cpu.a) & ")"
+  of 0xE2:
+    var address = 0xFF00'u16
+    address = bitOr(address, uint16(readLsb(cpu.bc)))
+    cpu.mem.gameboy.writeByte(address, cpu.a)
+    cpu.pc += 1
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "LD (C) A"
   of 0xE5:
     cpu.pc += 1
     cpu.sp -= 1
@@ -1608,6 +1616,14 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.tClock = 12
     result.mClock = 3
     result.debugStr = "LD A " & $toHex(word) & " (" & $toHex(cpu.a) & ")"
+  of 0xF2:
+    var address = 0xFF00'u16
+    address = bitOr(address, uint16(readLsb(cpu.bc)))
+    cpu.a = cpu.mem.gameboy.readByte(address)
+    cpu.pc += 1
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "LD A (C)"
   of 0xF3:
     cpu.pc += 1
     cpu.ime = false # Interrupts are immediately disabled!
