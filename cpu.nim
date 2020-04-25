@@ -1450,6 +1450,23 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.tClock = 4
     result.mClock = 1
     result.debugStr = "CP A"
+  of 0xC0:
+    cpu.pc += 1
+    if not cpu.zFlag:
+      cpu.ret()
+      result.tClock = 20
+      result.mClock = 5
+      result.debugStr = "RET NZ"
+    else:
+      result.tClock = 8
+      result.mClock = 2
+      result.debugStr = "RET NZ (missed)"
+  of 0XC1:
+    cpu.bc = cpu.popWord()
+    cpu.pc += 1
+    result.tClock = 12
+    result.mClock = 3
+    result.debugStr = "POP BC " & $toHex(cpu.sp) & " (" & $toHex(cpu.bc) & ")"
   of 0xC3:
     let word = cpu.readWord(cpu.pc + 1)
     cpu.pc = word
@@ -1458,10 +1475,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.debugStr = "JP " & $toHex(word)
   of 0xC5:
     cpu.pc += 1
-    cpu.sp -= 1
-    cpu.mem.gameboy.writeByte(cpu.sp, readMsb(cpu.bc))
-    cpu.sp -= 1
-    cpu.mem.gameboy.writeByte(cpu.sp, readLsb(cpu.bc))
+    cpu.pushWord(cpu.bc)
     result.tClock = 16
     result.mClock = 4
     result.debugStr = "PUSH BC " & $toHex(cpu.sp) & " (" & $toHex(cpu.bc) & ")"
@@ -1519,12 +1533,26 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.tClock = 16
     result.mClock = 4
     result.debugStr = "RST 08"
+  of 0xD0:
+    cpu.pc += 1
+    if not cpu.cFlag:
+      cpu.ret()
+      result.tClock = 20
+      result.mClock = 5
+      result.debugStr = "RET NC"
+    else:
+      result.tClock = 8
+      result.mClock = 2
+      result.debugStr = "RET NC (missed)"
+  of 0XD1:
+    cpu.de = cpu.popWord()
+    cpu.pc += 1
+    result.tClock = 12
+    result.mClock = 3
+    result.debugStr = "POP DE " & $toHex(cpu.sp) & " (" & $toHex(cpu.de) & ")"
   of 0xD5:
     cpu.pc += 1
-    cpu.sp -= 1
-    cpu.mem.gameboy.writeByte(cpu.sp, readMsb(cpu.de))
-    cpu.sp -= 1
-    cpu.mem.gameboy.writeByte(cpu.sp, readLsb(cpu.de))
+    cpu.pushWord(cpu.de)
     result.tClock = 16
     result.mClock = 4
     result.debugStr = "PUSH DE " & $toHex(cpu.sp) & " (" & $toHex(cpu.de) & ")"
@@ -1576,6 +1604,12 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.tClock = 12
     result.mClock = 3
     result.debugStr = "LD " & $toHex(word) & " A (" & $toHex(cpu.a) & ")"
+  of 0XE1:
+    cpu.hl = cpu.popWord()
+    cpu.pc += 1
+    result.tClock = 12
+    result.mClock = 3
+    result.debugStr = "POP HL " & $toHex(cpu.sp) & " (" & $toHex(cpu.hl) & ")"
   of 0xE2:
     var address = 0xFF00'u16
     address = bitOr(address, uint16(readLsb(cpu.bc)))
@@ -1586,10 +1620,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.debugStr = "LD (C) A"
   of 0xE5:
     cpu.pc += 1
-    cpu.sp -= 1
-    cpu.mem.gameboy.writeByte(cpu.sp, readMsb(cpu.hl))
-    cpu.sp -= 1
-    cpu.mem.gameboy.writeByte(cpu.sp, readLsb(cpu.hl))
+    cpu.pushWord(cpu.hl)
     result.tClock = 16
     result.mClock = 4
     result.debugStr = "PUSH HL " & $toHex(cpu.sp) & " (" & $toHex(cpu.hl) & ")"
@@ -1637,6 +1668,13 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.tClock = 12
     result.mClock = 3
     result.debugStr = "LD A " & $toHex(word) & " (" & $toHex(cpu.a) & ")"
+  of 0XF1:
+    cpu.f = cpu.popByte()
+    cpu.a = cpu.popByte()
+    cpu.pc += 1
+    result.tClock = 12
+    result.mClock = 3
+    result.debugStr = "POP AF " & $toHex(cpu.sp) & " (" & $toHex(cpu.a) & $toHex(cpu.f) & ")"
   of 0xF2:
     var address = 0xFF00'u16
     address = bitOr(address, uint16(readLsb(cpu.bc)))
@@ -1653,10 +1691,8 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.debugStr = "DI"
   of 0xF5:
     cpu.pc += 1
-    cpu.sp -= 1
-    cpu.mem.gameboy.writeByte(cpu.sp, cpu.a)
-    cpu.sp -= 1
-    cpu.mem.gameboy.writeByte(cpu.sp, cpu.f)
+    cpu.pushByte(cpu.a)
+    cpu.pushByte(cpu.f)
     result.tClock = 16
     result.mClock = 4
     result.debugStr = "PUSH AF " & $toHex(cpu.sp) & " (" & $toHex(cpu.a) & $toHex(cpu.f) & ")"
