@@ -3,52 +3,80 @@ import debugger
 import gameboy
 import cartridge
 import sdl2
-import os
 import renderer
 import types
+import joypad
 
 const tileDebuggerScale:cint = 1 # Output Scaling
 
+type
+  Game = ref object
+    inputs: array[Input, bool]
+    renderer: RendererPtr
+    gameboy: Gameboy
+
+proc newGame(renderer: RendererPtr; gameboy: Gameboy): Game = 
+  new result
+  result.renderer = renderer
+  result.gameboy = gameboy
+
 proc limitFrameRate() =
-  if (getTicks() < 30):
-    delay(30 - getTicks())
+  if (getTicks() < 17):
+    delay(17 - getTicks())
+
+proc handleInput(game: Game) = 
+  var event = defaultEvent
+  while pollEvent(event):
+    case event.kind:
+    of QuitEvent:
+      game.inputs[Input.quit] = true
+    of KeyDown:
+      echo "Keydown"
+      game.inputs[event.key.keysym.scancode.toInput] = true
+    of KeyUp:
+      game.inputs[event.key.keysym.scancode.toInput] = false
+    else: 
+      discard
+
+proc render(game: Game) = 
+  game.renderer.clear()
+  game.renderer.step(game.gameboy.ppu)
+  game.renderer.present()
 
 proc main =
-  let gbRenderer = getRenderer("Nimboy", 160, 144)
   let tileMapRenderer = getRenderer("Tile Data", 256 * tileDebuggerScale, 256 * tileDebuggerScale)
 
-  sleep(3000)
-  # Game loop, draws each frame
   var 
-    gb = newGameboy()
+    game = newGame(getRenderer("Nimboy", 160, 144), newGameboy())
     debugger = newDebugger()
-    running = true
-    evt = sdl2.defaultEvent
     refresh: bool
+  
   # Preload tetris
-  gb.cartridge.loadRomFile("roms/tetris.gb")
-  tileMapRenderer.clear()
+  game.gameboy.cartridge.loadRomFile("roms/tetris.gb")
+  
   #sleep (3000)
-  gb.ppu.fillTestTiles()
-  while running:
-    while pollEvent(evt):
-      if evt.kind == QuitEvent:
-        running = false
-        break
-    
+  game.gameboy.ppu.fillTestTiles()
+
+  # Game loop, draws each frame
+  while not game.inputs[Input.quit]:
+    game.handleInput()
+
     # Only render when shifting from vSync to OAMMode
-    if oamSearch == gb.ppu.mode and true == refresh:
+    if oamSearch == game.gameboy.ppu.mode and true == refresh:
       refresh = false
-      tileMapRenderer.renderTilemap(gb.ppu)
+      tileMapRenderer.clear()
+      tileMapRenderer.renderTilemap(game.gameboy.ppu)
       tileMapRenderer.present()
-      gbRenderer.step(gb.ppu)
-      gbRenderer.present()
+      game.render()
 
     # Set next OAM to fire off a redraw
-    if vBlank == gb.ppu.mode:
+    if vBlank == game.gameboy.ppu.mode:
       refresh = true
-
-    echo gb.step().debugStr
-    #debug(gb, debugger)
+    
+    # Dump the current opcodes to the screen for now.
+    discard game.gameboy.step().debugStr
+    # Disable debugger
+    # debug(gb, debugger) 
+    # Limited to ~60 FPS
     limitFrameRate()
 main()
