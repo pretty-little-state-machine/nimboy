@@ -15,7 +15,7 @@ proc limitFrameRate() =
     delay(30 - getTicks())
 
 proc main =
-  let gbRenderer = getRenderer("Nimboy", 160, 144)
+  #let gbRenderer = getRenderer("Nimboy", 160, 144)
   let tileMapRenderer = getRenderer("Tile Data", 256 * tileDebuggerScale, 256 * tileDebuggerScale)
 
   # Game loop, draws each frame
@@ -28,7 +28,7 @@ proc main =
   # Preload tetris
   gb.cartridge.loadRomFile("roms/tetris.gb")
   tileMapRenderer.clear()
-  sleep (3000)
+  #sleep (3000)
   gb.ppu.fillTestTiles()
   while running:
     #gbRenderer.clear()
@@ -43,16 +43,18 @@ proc main =
     # Only render when shifting from vSync to OAMMode
     if oamSearch == gb.ppu.mode and true == refresh:
       refresh = false
-      tileMapRenderer.renderMgbTileMap(gb.ppu)
+      gb.ppu.fillTestTiles()
+      tileMapRenderer.renderTilemap(gb.ppu)
       tileMapRenderer.present()
-      gbRenderer.step(gb.ppu)
-      gbRenderer.present()
+      sleep (1000)
+     # gbRenderer.step(gb.ppu)
+     #gbRenderer.present()
 
     # Set next OAM to fire off a redraw
     if vBlank == gb.ppu.mode:
       refresh = true
 
-    echo gb.step().debugStr
+    discard gb.step().debugStr
     #debug(gb, debugger)
     limitFrameRate()
 main()

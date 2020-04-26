@@ -8,6 +8,7 @@ import system
 import bitops
 import types
 import os
+import ppu
 
 type 
   SDLException = object of Exception
@@ -20,20 +21,6 @@ type
   
   # Palette - 4 Colors (0 is transparent for sprites)
   Palette = array[4, PpuColor] 
-  
-  # TODO: DO I CARE ABOUT THESE?
-  # 2bb Encoded Tile Data - 4:1 Compression ratio
-  TwoBB = array[16, uint8]
-  
-  # Decoded Tile Data - 8x8 Pixels
-  Tile = object 
-    data: array[64, uint8]
-
-  # Generic buffer that will be passed through rendering pipelines
-  DebugBuffer = ref object of RootObj
-    width: int   # Number of pixels wide
-    height: int  # Number of pixels high
-    data: array[(32 * 32)*8*8, PpuColor] # Should be enough to hold the entire tilemap debugger - 1024 possible sprites
 
 template sdlFailIf(cond: typed, reason: string) =
   if cond: raise SDLException.newException(
@@ -79,18 +66,6 @@ proc byteToMgbPalette(byte: uint8): Palette =
     result[offset] = decodeMgbColor(tmp)
     offset += 1
 
-proc decode2bbTile(data: TwoBB): Tile =
-  # Decodes a sprite encoded with the 2BB format. 
-  # See https://www.huderlem.com/demos/gameboy2bpp.html for how this works.
-  var offset = 0'u8
-  for x in countup(0, 15, 2):
-    let lByte = data[x]
-    let hByte = data[x+1]
-    for i in countdown(7, 0):
-      if lByte.testBit(i): result.data[offset] += 2
-      if hByte.testBit(i): result.data[offset] += 1
-      offset += 1
-
 proc drawSwatch(renderer: RendererPtr; x: cint; y: cint; 
                 width: cint; height: cint; color: PpuColor): void =
   # Draws a coloured rectangle swatch for palette inspection
@@ -99,85 +74,11 @@ proc drawSwatch(renderer: RendererPtr; x: cint; y: cint;
       renderer.setDrawColor(r = color.r, g = color.g, b = color.b)
       renderer.drawPoint(cint(i), cint(j))
 
-proc renderDebugBuffer(renderer: RendererPtr; buffer: DebugBuffer; scale: int = 1): void =
-  # TODO - Post Procesesing / Scaling
-  for yCoord in countup(0, buffer.height):
-    for xCoord in countup(0, buffer.width - 1):
-      let color = buffer.data[(yCoord * buffer.width) + xCoord]
-      renderer.setDrawColor(r = color.r, g = color.g, b = color.b)
-      renderer.drawPoint(cint(xCoord), cint(yCoord))
-
-proc drawTile(buffer: var DebugBuffer; tile: Tile; palette: Palette; x: cint; y: cint) =
-  # Draws a tile with the top-left corner at x,y with a given palette.
-  let memOffset = (x * 8) + (y * buffer.height * 8)
-  for yCoord in countup(0, 7):
-    for xCoord in countup(0, 7):
-      var color = palette[tile.data[(8 * yCoord) + xCoord]]
-      buffer.data[(memOffset + yCoord * buffer.height) + xCoord] = color
-
-proc renderMgbTileMap*(renderer: RendererPtr; ppu: PPU) = 
-  # Renders the Monochrome Gameboy Tile Map
-  var debugBuffer = new DebugBuffer
-  debugBuffer.width = (32 * 8)   # 32 Tiles Wide
-  debugBuffer.height = (24 * 8)  # 256x32 Swatch Map + 384 8x8 Tiles
-  # Read the Palette Data
-  let palette = byteToMgbPalette(ppu.bgp)
-
-  # Bank 0
-  var xOffset = 0
-  var yOffset = 10 # Leave room for swatch overlay, which is 4 tiles high
-  for tileOffset in countup(0, 0x17F0, 0xF):
-    var twoBB: TwoBB
-    for b in countup(0'u16, 0xF):
-      twoBB[b] = ppu.vRAMTileDataBank0[uint16(tileOffset) + b] # Load the 2bb encoding of a sprite (16 bytes)
-    debugBuffer.drawTile(twoBB.decode2bbTile(), palette, cint(xOffset), cint(yOffset))
-    xOffset += 1
-    if xOffset > 32: 
-      xOffset = 0
-      yOffset += 1
-  # Bank 1
-  xOffset = 0
-  yOffset = 17
-  for tileOffset in countup(0, 0x17F0, 0xF):
-    var twoBB: TwoBB
-    for b in countup(0'u16, 0xF):
-      twoBB[b] = ppu.vRAMTileDataBank1[uint16(tileOffset) + b] # Load the 2bb encoding of a sprite (16 bytes)
-    debugBuffer.drawTile(twoBB.decode2bbTile(), palette, cint(xOffset), cint(yOffset))
-    xOffset += 1
-    if xOffset > 32: 
-      xOffset = 0
-      yOffset += 1
-
-  renderer.renderDebugBuffer(debugBuffer)
-
-  # Overlay swatches (since the pixel data has been written once)
-  renderer.drawSwatch(0, 0, 64, 32, palette[0])
-  renderer.drawSwatch(64, 0, 64, 32, palette[1])
-  renderer.drawSwatch(128, 0, 64, 32, palette[2])
-  renderer.drawSwatch(192, 0, 64, 32, palette[3])
-#proc renderCgbTileMap(renderer: RendererPtr; ppu: PPU) = 
-  # TODO
-
-proc drawTestTile*(renderer: RendererPtr; ppu: PPU): void =
-  # Draws a sample sprite to the renderer. Useful for testing scaler
-  # code or just eliminating the GB Video memory.
-  var debugBuffer = new DebugBuffer
-  debugBuffer.width = 8
-  debugBuffer.height = 8 
-  let palette = byteToMgbPalette(ppu.bgp)
-  var twoBB: TwoBB
-  var tmp = [0xFF'u8, 0x00, 0x7E, 0xFF, 0x85, 0x81, 0x89, 0x83, 0x93, 0x85, 0xA5, 0x8B, 0xC9, 0x97, 0x7E, 0xFF]
-  for b in countup(0'u16, 0xF): 
-    twoBB[b] = tmp[b]
-  var tile = twoBB.decode2bbTile()
-  debugBuffer.drawTile(tile, palette, 1, 0)
-  renderer.renderDebugBuffer(debugBuffer)
-
 proc fillTestTiles*(ppu: var PPU): void = 
   # Fills the PPU Sprite memory with a single test sprite over and over
   ppu.bgp = 0x1B'u8 # Fake testing one - 4 colours
   var tmp = [0xFF'u8, 0x00, 0x7E, 0xFF, 0x85, 0x81, 0x89, 0x83, 0x93, 0x85, 0xA5, 0x8B, 0xC9, 0x97, 0x7E, 0xFF]
-  for tileOffset in countup(0, 0x17F0, 0xF):
+  for tileOffset in countup(0, 0x17F0, 0x10):
     for b in countup(0'u16, 0xF): 
        ppu.vRAMTileDataBank0[uint16(tileOffset) + b] = tmp[b]
 
@@ -204,3 +105,29 @@ proc step*(renderer: RendererPtr; ppu: PPU): void =
   for y in countup(1, 144):
     for x in countup(1, 160):
       renderer.drawPixelEntry(ppu, cint(x), cint(y))
+
+proc renderTileMap*(renderer: RendererPtr; ppu: PPU): void =
+  let palette = byteToMgbPalette(ppu.bgp)
+  var
+    xOffset = 0
+    yOffset = 0
+  for sprite in countup(0, 383):
+    for row in countup(0, 7):
+      let 
+        lByte = ppu.vRAMTileDataBank0[(sprite * 16) + int(row * 2) + 0]
+        hByte = ppu.vRAMTileDataBank0[(sprite * 16) + int(row * 2) + 1]
+        tmp = decode2bbTileRow(lbyte, hByte)
+      for pixel in countup(0, 7):
+        let color = palette[tmp[pixel]]
+        renderer.setDrawColor(r = color.r, g = color.g, b = color.b)
+        renderer.drawPoint(cint((xOffset*8) + pixel), cint(yOffset + row))
+    xOffset += 1
+    if 32 == xOffset:
+      xOffset = 0
+      yOffset += 8
+
+  # Overlay swatches (since the pixel data has been written once)
+  renderer.drawSwatch(0, 192, 64, 32, palette[0])
+  renderer.drawSwatch(64, 192, 64, 32, palette[1])
+  renderer.drawSwatch(128, 192, 64, 32, palette[2])
+  renderer.drawSwatch(192, 192, 64, 32, palette[3])

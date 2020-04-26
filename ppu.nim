@@ -37,10 +37,10 @@ proc getWindowTileNibble(ppu: PPU; tileNumber: uint8; row: uint8; byte: uint8): 
     tmpTileNum = toSigned(tileNumber)
   else:
     tmpTileNum = int(tileNumber)
-  # Load in the result data  
+  # Load in the result data  TODO: This might need multiplcate on tilenumber by 16?
   result = ppu.vRAMTileDataBank0[memOffset + tmpTileNum + int(row * 2) + int(byte)]
 
-proc decode2bbTileRow(lByte: uint8; hByte: uint8): array[8, uint8] =
+proc decode2bbTileRow*(lByte: uint8; hByte: uint8): array[8, uint8] =
   # Decodes a sprite row encoded with the 2BB format
   # See https://www.huderlem.com/demos/gameboy2bpp.html for how this works.
   var offset = 0'u8
