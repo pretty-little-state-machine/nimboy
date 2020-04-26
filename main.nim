@@ -1,55 +1,54 @@
 # Nimboy imports
 import debugger
 import gameboy
+import cartridge
 import sdl2
 import os
-import ppu
+import renderer
+import types
 
-type SDLException = object of Exception
+const tileDebuggerScale:cint = 1 # Output Scaling
 
-template sdlFailIf(cond: typed, reason: string) =
-  if cond: raise SDLException.newException(
-    reason & ", SDL error: " & $getError())
-
-proc getRenderer(title: string; width: cint; height: cint): RendererPtr =
-  sdlFailIf(not sdl2.init(INIT_VIDEO or INIT_TIMER or INIT_EVENTS)):
-    "SDL2 initialization failed"
-  #defer: sdl2.quit()
-  #
-  sdlFailIf(not setHint("SDL_RENDER_SCALE_QUALITY", "2")):
-    "Linear texture filtering could not be enabled"
-  #
-  let window = createWindow(title = title,
-    x = SDL_WINDOWPOS_CENTERED, y = SDL_WINDOWPOS_CENTERED,
-    w = width, h = height, flags = SDL_WINDOW_SHOWN)
-  sdlFailIf window.isNil: "Window could not be created"
-  #defer: window.destroy()
-  #
-  let renderer = window.createRenderer(index = -1,
-    flags = Renderer_Accelerated or Renderer_PresentVsync)
-  sdlFailIf renderer.isNil: "Renderer could not be created"
-  #defer: renderer.destroy()
-  #
-  renderer.setDrawColor(r = 255, g = 255, b = 255)
-  return renderer
+proc limitFrameRate() =
+  if (getTicks() < 30):
+    delay(30 - getTicks())
 
 proc main =
-  #let gbRenderer = getRenderer("Nimboy", 160,144)
-  #let tileMapRenderer = getRenderer("Tile Data", 256, 256) # 192 for all sprites
+  let gbRenderer = getRenderer("Nimboy", 160, 144)
+  let tileMapRenderer = getRenderer("Tile Data", 256 * tileDebuggerScale, 256 * tileDebuggerScale)
 
+  sleep(3000)
   # Game loop, draws each frame
-  var gb = newGameboy()
-  var debugger = newDebugger()
-  while true:
-    #sleep(100)
-    #gbRenderer.clear()
-    #gbRenderer.step(gb.vpu)
-    #gbRenderer.present()
+  var 
+    gb = newGameboy()
+    debugger = newDebugger()
+    running = true
+    evt = sdl2.defaultEvent
+    refresh: bool
+  # Preload tetris
+  gb.cartridge.loadRomFile("roms/tetris.gb")
+  tileMapRenderer.clear()
+  #sleep (3000)
+  gb.ppu.fillTestTiles()
+  while running:
+    while pollEvent(evt):
+      if evt.kind == QuitEvent:
+        running = false
+        break
+    
+    # Only render when shifting from vSync to OAMMode
+    if oamSearch == gb.ppu.mode and true == refresh:
+      refresh = false
+      tileMapRenderer.renderTilemap(gb.ppu)
+      tileMapRenderer.present()
+      gbRenderer.step(gb.ppu)
+      gbRenderer.present()
 
-    #tileMapRenderer.clear()
-    #tileMapRenderer.renderTileMap(gb.vpu)
-    #tileMapRenderer.drawTestTile(gb.vpu)
-    #tileMapRenderer.present()
-    debug(gb, debugger)
+    # Set next OAM to fire off a redraw
+    if vBlank == gb.ppu.mode:
+      refresh = true
 
+    echo gb.step().debugStr
+    #debug(gb, debugger)
+    limitFrameRate()
 main()

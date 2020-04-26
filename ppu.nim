@@ -7,86 +7,46 @@
 # 
 # And read this: http://blog.kevtris.org/blogfiles/Nitty%20Gritty%20Gameboy%20VRAM%20Timing.txt
 #
-# Step - (Public Proc)
-#  |> Draw Background (PpuBuffer)
-#  |> Overlay Window  (PpuBuffer)
-#  |> Draw Sprites    (PpuBuffer)
-#  |> Render          (SDL2 RendererPtr Draw Calls)          
-#
-# This allows us to perform all our scaling or 2x2 SuperEagle interpolation or
-# whatever we want to do all at once instead of in the tile drawing routines.
-#
-# The PpuBuffer itself is very large as it might be holding debugger maps. 
-# Since the gameboy screen itself won't be using the entire thing the object
-# has a `used` field that will represent the actual consumed lenght for the 
-# renderer to function on.
+# The PPU will populate an array of palette lookups as pixels along with the data
+# for the palette to use. The PPU will handle priority, the SDL rendering engine
+# will not any "PPU logic" other than decoding the color space from the palettes.
+# 
+# See the PixelFIFOEntry type defintion to see what goes to the SDL rendering 
+# (or whatever else) that is used.
 #
 import system
 import bitops
+import deques
 import types
-
-type
-  # 2bb Encoded Tile Data - 4:1 Compression ratio
-  TwoBB = array[16, uint8]
-  
-  # Decoded Tile Data - 8x8 Pixels
-  Tile = object 
-    data: array[64, uint8]
-  
-  # Palette - 4 Colors (0 is transparent for sprites)
-  Palette = array[4, PpuColor] 
-  
-  # Color object populated with the Palette data - Represents a pixel
-  PpuColor = object
-    r: uint8
-    g: uint8
-    b: uint8
-
-  # Generic buffer that will be passed through rendering pipelines
-  PpuBuffer = ref object of RootObj
-    width: int   # Number of pixels wide
-    height: int  # Number of pixels high
-    data: array[(32 * 32)*8*8, PpuColor] # Should be enough to hold the entire tilemap debugger - 1024 possible sprites
 
 proc newPPUGb*(gameboy: Gameboy): PPUGb =
   PPUGb(gameboy: gameboy)
 
-proc getWindowTileMapStartingAddress(ppu: PPU): uint16 = 
-  if testBit(ppu.lcdc, 6):
-    return 0x9800'u16
+template toSigned(x: uint8): int8 = cast[int8](x)
+
+proc getWindowTileNibble(ppu: PPU; tileNumber: uint8; row: uint8; byte: uint8): uint8 =
+  # Returns the specific 2bb encoded byte of a sprite (4 dots)
+  # This automatically determines the map and offset based 
+  # on the LCDC settings
+  var memOffset = 0 # 0x8000 in mapped memory
+  if testBit(ppu.lcdc, 6): memOffset = 0x1000 #0x9000 in mapped memory
+  
+  # The tile number can either be calculated via signed or unsigned
+  var tmpTileNum: int
+  if testBit(ppu.lcdc, 4): 
+    tmpTileNum = toSigned(tileNumber)
   else:
-    return 0x9c00'u16
+    tmpTileNum = int(tileNumber)
+  # Load in the result data  TODO: This might need multiplcate on tilenumber by 16?
+  result = ppu.vRAMTileDataBank0[memOffset + tmpTileNum + int(row * 2) + int(byte)]
 
-proc decodeMgbColor(colorNumber: uint8): PpuColor =
-  # A nice set of psuedo-green colours for Monochrome Gameboy
-  case colorNumber:
-  of 0x03: result.r = 232'u8; result.g = 242'u8; result.b = 223'u8
-  of 0x02: result.r = 174'u8; result.g = 194'u8; result.b = 157'u8
-  of 0x01: result.r =  98'u8; result.g = 110'u8; result.b = 89'u8
-  of 0x00: result.r =  30'u8; result.g =  33'u8; result.b = 27'u8
-  else: result.r = 30'u8; result.g = 33'u8; result.b = 27'u8
-
-proc decode2bbTile(data: TwoBB): Tile =
-  # Decodes a sprite encoded with the 2BB format. 
+proc decode2bbTileRow*(lByte: uint8; hByte: uint8): array[8, uint8] =
+  # Decodes a sprite row encoded with the 2BB format
   # See https://www.huderlem.com/demos/gameboy2bpp.html for how this works.
   var offset = 0'u8
-  for x in countup(0, 15, 2):
-    let lByte = data[x]
-    let hByte = data[x+1]
-    for i in countdown(7, 0):
-      if lByte.testBit(i): result.data[offset] += 2
-      if hByte.testBit(i): result.data[offset] += 1
-      offset += 1
-
-proc byteToMgbPalette(byte: uint8): Palette =
-  # Reads the palette register into the four colors
-  # This is essentially 2bb encoding, just like tiles.
-  var offset = 0'u8
-  for idx in countup(0, 7, 2):
-    var tmp = 0'u8
-    if byte.testBit(idx + 1): tmp += 2
-    if byte.testBit(idx): tmp += 1
-    result[offset] = decodeMgbColor(tmp)
+  for i in countdown(7, 0):
+    if lByte.testBit(i): result[offset] += 2
+    if hByte.testBit(i): result[offset] += 1
     offset += 1
 
 proc readByte*(ppu: Ppu; address: uint16): uint8 {.noSideEffect.} =
@@ -98,15 +58,6 @@ proc readByte*(ppu: Ppu; address: uint16): uint8 {.noSideEffect.} =
     result = ppu.vRAMBgMap1[address - 0x9800]
   if address < 0x9FFF:
     result = ppu.vRAMBgMap1[address - 0x9C00]
-
-proc stepFifo(): void = 
-  # Read tile from background map
-  let x = 1
-  # Read Data 0 
-  
-  # Read Data 1
-
-  # Construct 8 pixels of data - but NOT PPU pixels
 
 proc readOamYCoord(ppu: PPU; spriteIdx: uint8): uint8 =
   return ppu.oam[0x04 * spriteIdx]
@@ -149,49 +100,84 @@ proc tickOamSearch(ppu: var PPU): void =
 
 proc resetFetch(fetch: var Fetch): void =
   # Resets the fetch operation. Hit on window changes or sprite loads
-  fetch.tick = 1
+  fetch.idle = false
   fetch.mode = fmsReadTile
 
-proc fetch(fetch: var Fetch): void =
+proc tickFetch(ppu: var PPU; row: uint8): void =
   # Executes a fetch operation.
-  # The fetch is running at 2Mhz so it only does something every other tick.
-  # This increments and fast returns if we're only on the first tick.
-  if 1 == fetch.tick:
-    fetch.tick += 1
-    return 
+  case ppu.fetch.mode
+  of fmsReadTile:
+    ppu.fetch.tmpTileNum = 0
+    ppu.fetch.mode = fmsReadData0
+  of fmsReadData0:
+    ppu.fetch.tmpByte0 = ppu.getWindowTileNibble(1, 1, 0)
+    ppu.fetch.mode = fmsReadData1
+  of fmsReadData1:
+    let byte1 = ppu.getWindowTileNibble(1, 1, 1)
+    let tmpData = decode2bbTileRow(ppu.fetch.tmpByte0, byte1)
+    # Build up the 7 PixelFIFOEntry objects from the decoding
+    for x in countup(0, 7):
+      ppu.fetch.result[x].data = tmpData[x]
+      ppu.fetch.result[x].entity = ppu.fetch.entity
+    ppu.fetch.idle = true # Data is now ready
 
-  # TODO: Actually make the fetcher DO something.
-
-  # Increment the state machine
-  if fmsReadTile == fetch.mode: fetch.mode = fmsReadData0
-  if fmsReadData0 == fetch.mode: fetch.mode = fmsReadData1
-  if fmsReadData1 == fetch.mode: fetch.mode = fmsIdle
-  if fmsIdle == fetch.mode: fetch.resetFetch() # Reset the state machine
-
-proc tickPixelTransfer(ppu: var PPU): void = 
-  # Reset the PPU and aport
-  if 160 == ppu.fifo.pixelTransferX:
+proc pixelTransferComplete(ppu: var PPU): void =
     ppu.ly += 1
     ppu.mode = hBlank
-    ppu.fifo.pixelTransferX = 0
-    ppu.fifo.queueDepth = 0
-    return
+    ppu.lx = 0
+    ppu.fifo.clear()
 
-  if ppu.fifo.queueDepth >= 8:
+proc tickPixelTransfer(ppu: var PPU): void = 
+  # Handles the Pixel Transfer mode of the PPU
+
+  # TODO Add sprite detection
+  if ppu.fifo.len > 8:
     # Mix Pixels - Up to 10 cycles based on OAM Buffer
-    for i in countup(1'u8, ppu.oamBuffer.idx):
+    #for i in countup(1'u8, ppu.oamBuffer.idx):
       # Determine which entry wins and replace values in FIFO
       # Decode Palette
-      break
+      #break
     # Push Pixel to LCD Display
-    ppu.fifo.queueDepth -= 1
-    ppu.fifo.pixelTransferX += 1
+    ppu.outputBuffer[(ppu.ly * 144) + ppu.lx] = ppu.fifo.popFirst()
+    ppu.lx += 1
+
+  # Only run the fetcher every other tick.
+  if false == ppu.fetch.canRun:
+    ppu.fetch.canRun = true
+  else:
+    ppu.tickFetch(ppu.ly div 8)
+    ppu.fetch.canRun = false
+
+  # Pull the data out of the fetch when FIFO has room
+  if true == ppu.fetch.idle and ppu.fifo.len() <= 8:
+    for x in countup(0x0, 0x7):
+      ppu.fifo.addLast(ppu.fetch.result[x])
+    ppu.fetch.resetFetch() 
+
+  # Pixel transfer complete - Switch to HBlank
+  if 160 == ppu.lx:
+    ppu.pixelTransferComplete()
+
+proc hBlankUpdates(ppu: var PPU): void =
+  # Writes in any requested memory settings for the PPU during the H-Blank
+  ppu.scy = ppu.requestedScy
+  ppu.scx = ppu.requestedScx
+  ppu.lyc = ppu.requestedLyc
+  ppu.wy = ppu.requestedWy
+  ppu.wx = ppu.requestedWx
+
+
+proc isRefreshed(ppu: PPU): bool =
+  17556 == ppu.clock
 
 proc tick*(ppu: var PPU) =
   # Processes a tick based on the system clock.
-
+  # 
+  # This runs through four modes in a state machine:
+  # (oamSearch -> pixelTransfer -> hBlank) x 144 -> VLBLANK -> Repeat....
+  # This takes exactly 17556 machine cycles (ticks) to go through one rotation.
   # Rollover per Video Cycle - End of VBLANK
-  if 17556 == ppu.clock: 
+  if ppu.isRefreshed:
     ppu.ly = 0
     ppu.clock = 0
     for x in ppu.oamBuffer.data.mitems: x = 0 # Flush OAM Buffer
@@ -201,20 +187,35 @@ proc tick*(ppu: var PPU) =
     ppu.tickOamSearch()
   
   if pixelTransfer == ppu.mode:
-    ppu.tickPixelTransfer()
+    for f in countup(1, 4): # 4 times faster than CPU
+      ppu.tickPixelTransfer()
 
   # End H-BLank every 114 cycles - This is the difference between 144 - (OAM + Pixel Transfer)
   if (0 == ppu.clock mod 114 and ppu.mode == hBlank):
-    ppu.mode = oamSearch # Update state machine
-    # Update any requested values for window / scroll / Lyc
-    ppu.scy = ppu.requestedScy
-    ppu.scx = ppu.requestedScx
-    ppu.lyc = ppu.requestedLyc
-    ppu.wy = ppu.requestedWy
-    ppu.wx = ppu.requestedWx
+    ppu.hBlankUpdates()
+    ppu.mode = oamSearch # Set the state machine
     
   # Override OAM Search if we hit VBlank
   if (144 == ppu.ly):
     ppu.mode = vBlank
 
+  # LY keeps counting up every 114 clocks during vBlank (up to 153)
+  if vBlank == ppu.mode and 0 == ppu.clock mod 114:
+    ppu.ly += 1
+
   ppu.clock += 1
+
+proc writeByte*(ppu: var PPU; address: uint16; value: uint8): void =
+  # Writes a byte from the cartridge with paging. 
+  # Valid address requests directed to this proc:
+  #
+  # MAPPED locations
+  # $8000 - $9FFF
+  #
+  # TODO: Handle the various paging models
+  if address < 0x9800:
+    ppu.vRAMTileDataBank0[address - 0x8000] = value
+  elif address < 0x9C00:
+    ppu.vRAMBgMap1[address - 0x9800] = value
+  elif address < 0xA000:
+    ppu.vRAMBgMap2[address - 0x9C00] = value

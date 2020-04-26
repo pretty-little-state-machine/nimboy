@@ -21,7 +21,7 @@ proc readByte*(cartridge: Cartridge; address: uint16): uint8 {.noSideEffect.} =
     return cartridge.internalRAM[offset]
 
 proc writeByte*(cartridge: var Cartridge; address: uint16; value: uint8): void =
-  # Reads a byte from the cartridge with paging. 
+  # Writes a byte from to cartridge with paging. 
   # Valid address requests directed to this proc:
   #
   # $0000 - $3FFF - 16K Fixed ROM

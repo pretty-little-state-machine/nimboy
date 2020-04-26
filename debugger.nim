@@ -1,8 +1,8 @@
+import deques
 import parseutils
 import strutils
 import terminal
 import bitops
-import colors
 # Nimboy Imports
 import types
 import cartridge
@@ -243,7 +243,28 @@ proc drawPpuMode(ppu: PPU) =
   stdout.write(" WX: " & $ppu.wx)
   setCursorPos(70,9)
   stdout.write(" WY: " & $ppu.wy)
-  
+  setCursorPos(70,10)
+  stdout.write("FQD: " & $ppu.fifo.len())
+  setCursorPos(70,11)
+  stdout.write(" Lx: " & $ppu.lx)
+  setCursorPos(60,12)
+  stdout.write("FState: ")
+  setCursorPos(70,12)
+  case ppu.fetch.mode
+  of fmsReadTile:
+    stdout.write("Read Tile")
+  of fmsReadData0:
+    stdout.write("Read Data 0")
+  of fmsReadData1:
+    stdout.write("Read Data 1")
+  setCursorPos(60,13)
+  stdout.write("F.Idle: ")
+  setCursorPos(70,13)
+  if ppu.fetch.idle:
+    stdout.write("True")
+  else:
+    stdout.write("False")
+
 proc draw(gameboy: Gameboy; debugger: Debugger) =
   drawCliTables()
   drawCpu(gameboy.cpu)
