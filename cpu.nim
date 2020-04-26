@@ -571,7 +571,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     cpu.pc += 1
     result.tClock = 8
     result.mClock = 2
-    result.debugStr = "LDI " & $toHex(cpu.hl) & " " & $toHex(cpu.a)
+    result.debugStr = "LDI HL" & $toHex(cpu.hl) & " " & $toHex(cpu.a)
   of 0x23:
     cpu.hl += 1
     cpu.pc += 1
@@ -580,10 +580,11 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.debugStr = "INC HL"
   of 0x24:
     # Note that Carry is NOT set on this operation
+    var oldcarry = cpu.cFlag()
     var tmp = readMsb(cpu.hl)
-    cpu.setFlagN(true)
-    cpu.setFlagH(isAddHalfCarry(tmp, 1, 0))
-    tmp = tmp + 1;
+    tmp = cpu.doAdd(tmp,1,false)
+    cpu.setFlagC(oldcarry)
+    cpu.setFlagN(false)
     cpu.setFlagZ(0 == tmp)
     cpu.hl = setMsb(cpu.hl, tmp)
     cpu.pc += 1
@@ -592,12 +593,11 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.debugStr = "INC H"
   of 0x25:
     # Note that Carry is NOT set on this operation
+    var oldcarry = cpu.cFlag()
     var tmp = readMsb(cpu.hl)
-    var one: uint8 = 1
-    var onec = not(one)
-    cpu.setFlagN(true)
-    cpu.setFlagH(isSubHalfCarry(tmp, onec, 0))
-    tmp = tmp - 1;
+    tmp = cpu.doSub(tmp,1,false)
+    cpu.setFlagC(oldcarry)
+    cpu.setFlagN(false)
     cpu.setFlagZ(0 == tmp)
     cpu.hl = setMsb(cpu.hl, tmp)
     cpu.pc += 1
@@ -611,6 +611,44 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "LD H " & $toHex(byte)
+  of 0x27:
+    var oldValue = cpu.a
+    var newValue:uint16 = cpu.a
+    let oldCarry = cpu.cFlag
+    var newCarry = false
+    if bitand(oldValue, 0x0F) > 9 or cpu.hFlag:
+      newValue += 6
+      if bitand(newValue, 0x100) == 0x100:
+        newCarry = true
+      cpu.setFlagC(oldCarry or newCarry)
+      cpu.setFlagH(true)
+    else:
+      cpu.setFlagH(false)
+
+    if oldValue > 0x99 or oldCarry:
+      newValue += 0x80
+      cpu.setFlagC(true)
+    else:
+      cpu.setFlagC(false)
+    cpu.a = uint8(newValue)
+    cpu.setFlagZ(0 == cpu.a)
+    cpu.setFlagH(false)
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "DAA"
+  of 0x28:
+    let signed = toSigned(cpu.mem.gameboy.readbyte(cpu.pc + 1))
+    cpu.pc += 2 # The program counter always increments first!
+    if cpu.zFlag:
+      cpu.pc += uint16(signed)
+      result.tClock = 12
+      result.mClock = 3
+      result.debugStr = "JR Z " & $toHex(cpu.pc)
+    else:
+      result.tClock = 8
+      result.mClock = 2
+      result.debugStr = "JR Z missed"
   of 0x29:
     var byte: uint8 = cpu.doAdd(readLsb(cpu.hl), readLsb(cpu.hl), false)
     cpu.hl = setLsb(cpu.hl, byte)
@@ -636,10 +674,11 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.debugStr = "DEC HL"
   of 0x2C:
     # Note that Carry is NOT set on this operation
+    var oldcarry = cpu.cFlag()
     var tmp = readLsb(cpu.hl)
-    cpu.setFlagN(true)
-    cpu.setFlagH(isAddHalfCarry(tmp, 1, 0))
-    tmp = tmp + 1;
+    tmp = cpu.doAdd(tmp,1,false)
+    cpu.setFlagC(oldcarry)
+    cpu.setFlagN(false)
     cpu.setFlagZ(0 == tmp)
     cpu.hl = setLsb(cpu.hl, tmp)
     cpu.pc += 1
@@ -648,12 +687,11 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.debugStr = "INC L"
   of 0x2D:
     # Note that Carry is NOT set on this operation
+    var oldcarry = cpu.cFlag()
     var tmp = readLsb(cpu.hl)
-    var one: uint8 = 1
-    var onec = not(one)
-    cpu.setFlagN(true)
-    cpu.setFlagH(isSubHalfCarry(tmp, onec, 0))
-    tmp = tmp - 1;
+    tmp = cpu.doSub(tmp,1,false)
+    cpu.setFlagC(oldcarry)
+    cpu.setFlagN(false)
     cpu.setFlagZ(0 == tmp)
     cpu.hl = setLsb(cpu.hl, tmp)
     cpu.pc += 1
@@ -667,6 +705,12 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "LD L " & $toHex(byte)
+  of 0x2F:
+    cpu.a = not cpu.a
+    cpu.pc += 1
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "CPL"
   of 0x31:
     cpu.sp = setLsb(cpu.hl, cpu.mem.gameboy.readByte(cpu.pc + 1))
     cpu.sp = setMsb(cpu.hl, cpu.mem.gameboy.readByte(cpu.pc + 2))
