@@ -338,6 +338,12 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "LD B " & $toHex(byte)
+  of 0x07:
+    cpu.a = cpu.doRollLeft(cpu.a, true)
+    cpu.pc += 2
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "RLC A"
   of 0x08:
     let address = cpu.readWord(cpu.pc + 1) 
     cpu.writeWord(address, cpu.sp)
@@ -369,10 +375,11 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.debugStr = "DEC BC"
   of 0x0C:
     # Note that Carry is NOT set on this operation
+    var oldcarry = cpu.cFlag()
     var tmp = readLsb(cpu.bc)
-    cpu.setFlagN(true)
-    cpu.setFlagH(isAddHalfCarry(tmp, 1, 0))
-    tmp = tmp + 1;
+    tmp = cpu.doAdd(tmp,1,false)
+    cpu.setFlagC(oldcarry)
+    cpu.setFlagN(false)
     cpu.setFlagZ(0 == tmp)
     cpu.bc = setLsb(cpu.bc, tmp)
     cpu.pc += 1
@@ -381,12 +388,11 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.debugStr = "INC C"
   of 0x0D:
     # Note that Carry is NOT set on this operation
+    var oldcarry = cpu.cFlag()
     var tmp = readLsb(cpu.bc)
-    var one: uint8 = 1
-    var onec = not(one)
-    cpu.setFlagN(true)
-    cpu.setFlagH(isSubHalfCarry(tmp, onec, 0))
-    tmp = tmp - 1;
+    tmp = cpu.doSub(tmp,1,false)
+    cpu.setFlagC(oldcarry)
+    cpu.setFlagN(false)
     cpu.setFlagZ(0 == tmp)
     cpu.bc = setLsb(cpu.bc, tmp)
     cpu.pc += 1
@@ -400,6 +406,12 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "LD C " & $toHex(byte)
+  of 0x0F:
+    cpu.a = cpu.doRollRight(cpu.a, true)
+    cpu.pc += 2
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "RRC A"
   of 0x10:
     cpu.mem.gameboy.stopped = true
     cpu.pc += 1
@@ -428,10 +440,11 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.debugStr = "INC DE"
   of 0x14:
     # Note that Carry is NOT set on this operation
+    var oldcarry = cpu.cFlag()
     var tmp = readMsb(cpu.de)
-    cpu.setFlagN(true)
-    cpu.setFlagH(isAddHalfCarry(tmp, 1, 0))
-    tmp = tmp + 1;
+    tmp = cpu.doAdd(tmp,1,false)
+    cpu.setFlagC(oldcarry)
+    cpu.setFlagN(false)
     cpu.setFlagZ(0 == tmp)
     cpu.de = setMsb(cpu.de, tmp)
     cpu.pc += 1
@@ -440,12 +453,11 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.debugStr = "INC D"
   of 0x15:
     # Note that Carry is NOT set on this operation
+    var oldcarry = cpu.cFlag()
     var tmp = readMsb(cpu.de)
-    var one: uint8 = 1
-    var onec = not(one)
+    tmp = cpu.doSub(tmp,1,false)
+    cpu.setFlagC(oldcarry)
     cpu.setFlagN(true)
-    cpu.setFlagH(isSubHalfCarry(tmp, onec, 0))
-    tmp = tmp - 1;
     cpu.setFlagZ(0 == tmp)
     cpu.de = setMsb(cpu.de, tmp)
     cpu.pc += 1
@@ -459,6 +471,19 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "LD D " & $toHex(byte)
+  of 0x17:
+    cpu.a = cpu.doRollLeft(cpu.a, false)
+    cpu.pc += 2
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "RL A"
+  of 0x18:
+    let signed = toSigned(cpu.mem.gameboy.readbyte(cpu.pc + 1))
+    cpu.pc += 2 # The program counter always increments first!
+    cpu.pc += uint16(signed)
+    result.tClock = 12
+    result.mClock = 3
+    result.debugStr = "JR " & $toHex(cpu.pc)   
   of 0x19:
     var byte: uint8 = cpu.doAdd(readLsb(cpu.hl), readLsb(cpu.de), false)
     cpu.hl = setLsb(cpu.hl, byte)
@@ -483,10 +508,11 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.debugStr = "DEC DE"
   of 0x1C:
     # Note that Carry is NOT set on this operation
+    var oldcarry = cpu.cFlag()
     var tmp = readLsb(cpu.de)
-    cpu.setFlagN(true)
-    cpu.setFlagH(isAddHalfCarry(tmp, 1, 0))
-    tmp = tmp + 1;
+    tmp = cpu.doAdd(tmp,1,false)
+    cpu.setFlagC(oldcarry)
+    cpu.setFlagN(false)
     cpu.setFlagZ(0 == tmp)
     cpu.de = setLsb(cpu.de, tmp)
     cpu.pc += 1
@@ -495,12 +521,11 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.debugStr = "INC E"
   of 0x1D:
     # Note that Carry is NOT set on this operation
+    var oldcarry = cpu.cFlag()
     var tmp = readLsb(cpu.de)
-    var one: uint8 = 1
-    var onec = not(one)
-    cpu.setFlagN(true)
-    cpu.setFlagH(isSubHalfCarry(tmp, onec, 0))
-    tmp = tmp - 1;
+    tmp = cpu.doSub(tmp,1,false)
+    cpu.setFlagC(oldcarry)
+    cpu.setFlagN(false)
     cpu.setFlagZ(0 == tmp)
     cpu.de = setLsb(cpu.de, tmp)
     cpu.pc += 1
@@ -514,13 +539,19 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "LD E " & $toHex(byte)
+  of 0x1F:
+    cpu.a = cpu.doRollRight(cpu.a, false)
+    cpu.pc += 2
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "RR A"
   of 0x20:
     let signed = toSigned(cpu.mem.gameboy.readbyte(cpu.pc + 1))
     cpu.pc += 2 # The program counter always increments first!
     if cpu.zFlag:
       result.tClock = 8
       result.mClock = 2
-      result.debugStr = "JR NZ " & $toHex(cpu.pc)
+      result.debugStr = "JR NZ missed"
     else:
       cpu.pc += uint16(signed)
       result.tClock = 12
