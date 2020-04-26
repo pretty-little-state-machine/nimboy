@@ -1,8 +1,8 @@
+import sdl2
 # Nimboy imports
 import debugger
 import gameboy
 import cartridge
-import sdl2
 import renderer
 import types
 import joypad
@@ -25,17 +25,20 @@ proc limitFrameRate() =
     delay(17 - getTicks())
 
 proc handleInput(game: Game) = 
+  # Decodes the SDL input and populates the Joypad bit of the gameboy
   var event = defaultEvent
   while pollEvent(event):
     case event.kind:
     of QuitEvent:
       game.inputs[Input.quit] = true
     of KeyDown:
-      echo "Keydown"
-      game.inputs[event.key.keysym.scancode.toInput] = true
+      let input = event.key.keysym.scancode.toInput
+      game.inputs[input] = true
+      game.gameboy.joypad = input.toRegisterByte()
     of KeyUp:
       game.inputs[event.key.keysym.scancode.toInput] = false
-    else: 
+      game.gameboy.joypad = toRegisterByte(Input.none)
+    else:
       discard
 
 proc render(game: Game) = 

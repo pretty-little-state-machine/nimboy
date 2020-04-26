@@ -8,6 +8,7 @@ type
     cartridge*: Cartridge
     ppu*: PPU
     timer*: Timer
+    joypad*: uint8      # $FF00 - Joypad register
     internalRam: array[8*1024'u16, uint8] # Internal RAM ($C000-$DFFF, read-only echo at $E000 - $FE00)
     osc*: uint8         # Internal Oscillator - Master Clock, only needs 8 bits, the Timer.div does the real work.
     intFlag*: uint8     # Interrupt Flags - 0xFF0F
