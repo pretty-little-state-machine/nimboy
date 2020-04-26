@@ -711,9 +711,21 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "CPL"
+  of 0x30:
+    let signed = toSigned(cpu.mem.gameboy.readbyte(cpu.pc + 1))
+    cpu.pc += 2 # The program counter always increments first!
+    if cpu.cFlag:
+      result.tClock = 8
+      result.mClock = 2
+      result.debugStr = "JR NC missed"
+    else:
+      cpu.pc += uint16(signed)
+      result.tClock = 12
+      result.mClock = 3
+      result.debugStr = "JR NC " & $toHex(cpu.pc)
   of 0x31:
-    cpu.sp = setLsb(cpu.hl, cpu.mem.gameboy.readByte(cpu.pc + 1))
-    cpu.sp = setMsb(cpu.hl, cpu.mem.gameboy.readByte(cpu.pc + 2))
+    cpu.sp = setLsb(cpu.sp, cpu.mem.gameboy.readByte(cpu.pc + 1))
+    cpu.sp = setMsb(cpu.sp, cpu.mem.gameboy.readByte(cpu.pc + 2))
     cpu.pc += 3
     result.tClock = 12
     result.mClock = 3
@@ -733,10 +745,11 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.debugStr = "INC SP"
   of 0x34:
     # Note that Carry is NOT set on this operation
+    var oldcarry = cpu.cFlag()
     var tmp = cpu.mem.gameboy.readByte(cpu.hl)
-    cpu.setFlagN(true)
-    cpu.setFlagH(isAddHalfCarry(tmp, 1, 0))
-    tmp = tmp + 1;
+    tmp = cpu.doAdd(tmp,1,false)
+    cpu.setFlagC(oldcarry)
+    cpu.setFlagN(false)
     cpu.setFlagZ(0 == tmp)
     cpu.mem.gameboy.writeByte(cpu.hl, tmp)
     cpu.pc += 1
@@ -745,12 +758,11 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.debugStr = "INC (HL) " & $toHex(cpu.hl)
   of 0x35:
     # Note that Carry is NOT set on this operation
+    var oldcarry = cpu.cFlag()
     var tmp = cpu.mem.gameboy.readByte(cpu.hl)
-    var one: uint8 = 1
-    var onec = not(one)
+    tmp = cpu.doSub(tmp,1,false)
+    cpu.setFlagC(oldcarry)
     cpu.setFlagN(true)
-    cpu.setFlagH(isSubHalfCarry(tmp, onec, 0))
-    tmp = tmp - 1;
     cpu.setFlagZ(0 == tmp)
     cpu.mem.gameboy.writeByte(cpu.hl, tmp)
     cpu.pc += 1
@@ -764,6 +776,24 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.tClock = 12
     result.mClock = 4
     result.debugStr = "LD (HL) " & $toHex(byte)
+  of 0x37:
+    cpu.setFlagC(true)
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "SCF"
+  of 0x38:
+    let signed = toSigned(cpu.mem.gameboy.readbyte(cpu.pc + 1))
+    cpu.pc += 2 # The program counter always increments first!
+    if cpu.cFlag:
+      cpu.pc += uint16(signed)
+      result.tClock = 12
+      result.mClock = 3
+      result.debugStr = "JR C " & $toHex(cpu.pc)
+    else:
+      result.tClock = 8
+      result.mClock = 2
+      result.debugStr = "JR C missed"
   of 0x39:
     var byte: uint8 = cpu.doAdd(readLsb(cpu.hl), readLsb(cpu.sp), false)
     cpu.hl = setLsb(cpu.hl, byte)
@@ -819,6 +849,12 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "LD A " & $toHex(cpu.a)
+  of 0x3F:
+    cpu.setFlagC(false)
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
+    result.debugStr = "CCF"
   of 0x40:
     cpu.bc = setMsb(cpu.bc, readMsb(cpu.bc))
     cpu.pc += 1
