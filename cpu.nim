@@ -892,9 +892,9 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 1
     result.debugStr = "LD B, L"
   of 0x46:
-    let value = cpu.mem.gameboy.readbyte(cpu.pc + 1)
+    let value = cpu.mem.gameboy.readbyte(cpu.hl)
     cpu.bc = setMsb(cpu.bc, value)
-    cpu.pc += 2
+    cpu.pc += 1
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "LD B, (HL) " & $toHex(value)
@@ -941,9 +941,9 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 1
     result.debugStr = "LD C, L"
   of 0x4E:
-    let value = cpu.mem.gameboy.readbyte(cpu.pc + 1)
+    let value = cpu.mem.gameboy.readbyte(cpu.hl)
     cpu.bc = setLsb(cpu.bc, value)
-    cpu.pc += 2
+    cpu.pc += 1
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "LD C, (HL) " & $toHex(value)
@@ -953,8 +953,6 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.tClock = 4
     result.mClock = 1
     result.debugStr = "LD C, A"
-
-
   of 0x50:
     cpu.de = setMsb(cpu.de, readMsb(cpu.bc))
     cpu.pc += 1
@@ -992,9 +990,9 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 1
     result.debugStr = "LD D, L"
   of 0x56:
-    let value = cpu.mem.gameboy.readbyte(cpu.pc + 1)
+    let value = cpu.mem.gameboy.readbyte(cpu.hl)
     cpu.de = setMsb(cpu.de, value)
-    cpu.pc += 2
+    cpu.pc += 1
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "LD D, (HL) " & $toHex(value)
@@ -1041,9 +1039,9 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 1
     result.debugStr = "LD E, L"
   of 0x5E:
-    let value = cpu.mem.gameboy.readbyte(cpu.pc + 1)
+    let value = cpu.mem.gameboy.readbyte(cpu.hl)
     cpu.de = setLsb(cpu.de, value)
-    cpu.pc += 2
+    cpu.pc += 1
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "LD E, (HL) " & $toHex(value)
@@ -1053,9 +1051,6 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.tClock = 4
     result.mClock = 1
     result.debugStr = "LD E, A"
-
-
-
   of 0x60:
     cpu.hl = setMsb(cpu.hl, readMsb(cpu.bc))
     cpu.pc += 1
@@ -1093,9 +1088,9 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 1
     result.debugStr = "LD H, L"
   of 0x66:
-    let value = cpu.mem.gameboy.readbyte(cpu.pc + 1)
+    let value = cpu.mem.gameboy.readbyte(cpu.hl)
     cpu.hl = setMsb(cpu.hl, value)
-    cpu.pc += 2
+    cpu.pc += 1
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "LD H, (HL) " & $toHex(value)
@@ -1142,9 +1137,9 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 1
     result.debugStr = "LD L, L"
   of 0x6E:
-    let value = cpu.mem.gameboy.readbyte(cpu.pc + 1)
+    let value = cpu.mem.gameboy.readbyte(cpu.hl)
     cpu.hl = setLsb(cpu.hl, value)
-    cpu.pc += 2
+    cpu.pc += 1
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "LD L, (HL) " & $toHex(value)
@@ -1155,37 +1150,37 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 1
     result.debugStr = "LD L, A"
   of 0x70:
-    cpu.bc = setMsb(cpu.bc, cpu.mem.gameboy.readByte(cpu.hl))
+    cpu.mem.gameboy.writeByte(cpu.hl, readMsb(cpu.bc))
     cpu.pc += 1
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "LD (HL), B"
   of 0x71:
-    cpu.bc = setLsb(cpu.bc, cpu.mem.gameboy.readByte(cpu.hl))
+    cpu.mem.gameboy.writeByte(cpu.hl, readLsb(cpu.bc))
     cpu.pc += 1
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "LD (HL), C"
   of 0x72:
-    cpu.de = setMsb(cpu.de, cpu.mem.gameboy.readByte(cpu.hl))
+    cpu.mem.gameboy.writeByte(cpu.hl, readMsb(cpu.de))
     cpu.pc += 1
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "LD (HL), D"
   of 0x73:
-    cpu.de = setLsb(cpu.de, cpu.mem.gameboy.readByte(cpu.hl))
+    cpu.mem.gameboy.writeByte(cpu.hl, readLsb(cpu.de))
     cpu.pc += 1
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "LD (HL), E"
   of 0x74:
-    cpu.hl = setMsb(cpu.hl, cpu.mem.gameboy.readByte(cpu.hl))
+    cpu.mem.gameboy.writeByte(cpu.hl, readMsb(cpu.hl))
     cpu.pc += 1
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "LD (HL), H"
   of 0x75:
-    cpu.hl = setLsb(cpu.hl, cpu.mem.gameboy.readByte(cpu.hl))
+    cpu.mem.gameboy.writeByte(cpu.hl, readLsb(cpu.hl))
     cpu.pc += 1
     result.tClock = 8
     result.mClock = 2
@@ -1196,7 +1191,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 1
     result.debugStr = "HALT"
   of 0x77:
-    cpu.a = cpu.mem.gameboy.readByte(cpu.hl)
+    cpu.mem.gameboy.writeByte(cpu.hl, cpu.a)
     cpu.pc += 1
     result.tClock = 8
     result.mClock = 2
@@ -1238,9 +1233,9 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 1
     result.debugStr = "LD A, L"
   of 0x7E:
-    let value = cpu.mem.gameboy.readbyte(cpu.pc + 1)
+    let value = cpu.mem.gameboy.readbyte(cpu.hl)
     cpu.a =  value
-    cpu.pc += 2
+    cpu.pc += 1
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "LD A, (HL) " & $toHex(value)
@@ -1250,6 +1245,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.tClock = 4
     result.mClock = 1
     result.debugStr = "LD A, A"
+
   of 0x80:
     cpu.pc += 1
     cpu.opAdd(readMsb(cpu.bc))
