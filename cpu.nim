@@ -1744,8 +1744,8 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
       result.debugStr = "CALL Z, (missed)"
   of 0xCD:
     var word: uint16
-    word = setMsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 1))
-    word = setLsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 2))
+    word = setMsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 2))
+    word = setLsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 1))
     cpu.pc += 3 # We increment BEFORE we call. The RET should be the instruction AFTER this one.
     cpu.call(word)
     result.tClock = 24
