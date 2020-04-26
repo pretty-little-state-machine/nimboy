@@ -1245,7 +1245,6 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.tClock = 4
     result.mClock = 1
     result.debugStr = "LD A, A"
-
   of 0x80:
     cpu.pc += 1
     cpu.opAdd(readMsb(cpu.bc))
@@ -1638,6 +1637,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.tClock = 4
     result.mClock = 1
     result.debugStr = "CP A"
+
   of 0xC0:
     cpu.pc += 1
     if cpu.zFlag:
