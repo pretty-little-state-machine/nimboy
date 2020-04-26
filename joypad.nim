@@ -42,5 +42,3 @@ proc toRegisterByte*(input: Input): uint8 =
     result.clearBit(0)
   else:
     discard
-
-    

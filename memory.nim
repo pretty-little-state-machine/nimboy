@@ -14,6 +14,8 @@ proc readByte*(gameboy: Gameboy, address: uint16): uint8 =
     return gameboy.cartridge.readByte(address)
   if address < 0x9FFF:
     return gameboy.ppu.readByte(address)
+  if 0xFF00 == address:
+    return gameboy.joypad
   if 0xFF0F == address:
     return gameboy.intFlag
   # PPU Allocations
@@ -73,7 +75,9 @@ proc writeByte*(gameboy: Gameboy; address: uint16; value: uint8): void =
     # TODO
     #gameboy.ppu.writeByte(address, value)
   else:
-    return
+    discard
+  if 0xFF00 == address:
+    discard  # Joypad will have the proper value either way.
   if 0xFF0F == address:
     gameboy.intFlag = value
   # PPU Allocations
