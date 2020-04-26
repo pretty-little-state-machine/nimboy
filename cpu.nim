@@ -819,10 +819,11 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.debugStr = "DEC SP"
   of 0x3C:
     # Note that Carry is NOT set on this operation
+    var oldcarry = cpu.cFlag()
     var tmp = cpu.a
-    cpu.setFlagN(true)
-    cpu.setFlagH(isAddHalfCarry(tmp, 1, 0))
-    tmp = tmp + 1;
+    tmp = cpu.doAdd(tmp,1,false)
+    cpu.setFlagC(oldcarry)
+    cpu.setFlagN(false)
     cpu.setFlagZ(0 == tmp)
     cpu.a = tmp
     cpu.pc += 1
@@ -831,12 +832,11 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.debugStr = "INC A"
   of 0x3D:
     # Note that Carry is NOT set on this operation
+    var oldcarry = cpu.cFlag()
     var tmp = cpu.a
-    var one: uint8 = 1
-    var onec = not(one)
+    tmp = cpu.doSub(tmp,1,false)
+    cpu.setFlagC(oldcarry)
     cpu.setFlagN(true)
-    cpu.setFlagH(isSubHalfCarry(tmp, onec, 0))
-    tmp = tmp - 1;
     cpu.setFlagZ(0 == tmp)
     cpu.a = tmp
     cpu.pc += 1
