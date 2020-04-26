@@ -6,6 +6,7 @@ import cartridge
 import renderer
 import types
 import joypad
+import apu
 
 const tileDebuggerScale:cint = 1 # Output Scaling
 
@@ -82,4 +83,5 @@ proc main =
     # debug(gb, debugger) 
     # Limited to ~60 FPS
     limitFrameRate()
-main()
+#main()
+testSound()

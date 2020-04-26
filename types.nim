@@ -1,4 +1,5 @@
 import deques
+import sdl2/audio
 
 type
   Gameboy* = ref GameboyObj
@@ -138,3 +139,18 @@ type
   PixelFIFOEntry* = object
     data*: uint8          # Will only contain pallete references - 0b00 -> 0b11
     entity*: FetchEntity  # Used to determine rules for mixing and palette lookups
+
+  # AUDIO!
+  AudioSettings* = object
+    sampleRate*: uint
+    numChannels*: uint
+    samples*: uint
+  
+  AudioHardware* = object
+    hardwareSpec*: AudioSpec
+    audioDeviceID*: AudioDeviceID
+
+
+
+
+
