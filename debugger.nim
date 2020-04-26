@@ -3,7 +3,6 @@ import parseutils
 import strutils
 import terminal
 import bitops
-import colors
 # Nimboy Imports
 import types
 import cartridge

@@ -2,7 +2,6 @@ import types
 import bitops
 import cartridge
 import ppu
-import strutils
 
 export types.CPUMemory
 

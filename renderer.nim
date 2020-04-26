@@ -1,7 +1,5 @@
 #
-# SDL2 Interface
-#
-# What good is a gameboy if you can't play games?
+# SDL Rendering Module
 #
 import sdl2
 import system
@@ -11,7 +9,7 @@ import os
 import ppu
 
 type 
-  SDLException = object of Exception
+  SDLException = object of IOError
 
   # Color object populated with the Palette data - Represents a pixel
   PpuColor = object

@@ -4,8 +4,7 @@ import gameboy
 import cartridge
 import sdl2
 import os
-import ppu
-import sdl
+import renderer
 import types
 
 const tileDebuggerScale:cint = 1 # Output Scaling
@@ -15,9 +14,10 @@ proc limitFrameRate() =
     delay(30 - getTicks())
 
 proc main =
-  #let gbRenderer = getRenderer("Nimboy", 160, 144)
+  let gbRenderer = getRenderer("Nimboy", 160, 144)
   let tileMapRenderer = getRenderer("Tile Data", 256 * tileDebuggerScale, 256 * tileDebuggerScale)
 
+  sleep(3000)
   # Game loop, draws each frame
   var 
     gb = newGameboy()
@@ -31,10 +31,6 @@ proc main =
   #sleep (3000)
   gb.ppu.fillTestTiles()
   while running:
-    #gbRenderer.clear()
-    #gbRenderer.step(gb.ppu)
-    #gbRenderer.present()
-
     while pollEvent(evt):
       if evt.kind == QuitEvent:
         running = false
@@ -43,18 +39,16 @@ proc main =
     # Only render when shifting from vSync to OAMMode
     if oamSearch == gb.ppu.mode and true == refresh:
       refresh = false
-      gb.ppu.fillTestTiles()
       tileMapRenderer.renderTilemap(gb.ppu)
       tileMapRenderer.present()
-      sleep (1000)
-     # gbRenderer.step(gb.ppu)
-     #gbRenderer.present()
+      gbRenderer.step(gb.ppu)
+      gbRenderer.present()
 
     # Set next OAM to fire off a redraw
     if vBlank == gb.ppu.mode:
       refresh = true
 
-    discard gb.step().debugStr
+    echo gb.step().debugStr
     #debug(gb, debugger)
     limitFrameRate()
 main()
