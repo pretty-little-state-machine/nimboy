@@ -392,7 +392,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     var tmp = readLsb(cpu.bc)
     tmp = cpu.doSub(tmp,1,false)
     cpu.setFlagC(oldcarry)
-    cpu.setFlagN(false)
+    cpu.setFlagN(true)
     cpu.setFlagZ(0 == tmp)
     cpu.bc = setLsb(cpu.bc, tmp)
     cpu.pc += 1
@@ -525,7 +525,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     var tmp = readLsb(cpu.de)
     tmp = cpu.doSub(tmp,1,false)
     cpu.setFlagC(oldcarry)
-    cpu.setFlagN(false)
+    cpu.setFlagN(true)
     cpu.setFlagZ(0 == tmp)
     cpu.de = setLsb(cpu.de, tmp)
     cpu.pc += 1
@@ -597,7 +597,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     var tmp = readMsb(cpu.hl)
     tmp = cpu.doSub(tmp,1,false)
     cpu.setFlagC(oldcarry)
-    cpu.setFlagN(false)
+    cpu.setFlagN(true)
     cpu.setFlagZ(0 == tmp)
     cpu.hl = setMsb(cpu.hl, tmp)
     cpu.pc += 1
@@ -691,7 +691,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     var tmp = readLsb(cpu.hl)
     tmp = cpu.doSub(tmp,1,false)
     cpu.setFlagC(oldcarry)
-    cpu.setFlagN(false)
+    cpu.setFlagN(true)
     cpu.setFlagZ(0 == tmp)
     cpu.hl = setLsb(cpu.hl, tmp)
     cpu.pc += 1
