@@ -9,11 +9,13 @@ import cartridge
 import gameboy
 import nimboyutils
 import cpu
+import memory
 
 type
   Debugger* = ref DebuggerObj
   DebuggerObj* = object
     history: seq[string]
+    mapAddr: uint16
 
 proc drawCliTables() = 
   eraseScreen()
@@ -103,6 +105,22 @@ proc drawCpu(cpu: CPU) =
 proc drawTitle(cartridge: Cartridge) =
   setCursorPos(1,1)
   stdout.write(cartridge.getRomDetailStr())
+
+proc drawMemoryLoc(gameboy: Gameboy; address: uint16) = 
+  # Draws a memory location starting DOWN from the address
+  setCursorPos(24, 3)
+  stdout.write("│ Memory Map │")
+  setCursorPos(24, 4)
+  stdout.write("├────────────┤")
+  var cursor = 5
+  var tmpAddr = address.uint16
+  for x in countdown(address, address - 31):
+    setCursorPos(24, cursor)
+    stdout.write("│ " & $toHex(tmpAddr))
+    setCursorPos(32, cursor)
+    stdout.write($toHex(readByte(gameboy, tmpAddr)) & "   │")
+    tmpAddr -= 1
+    cursor += 1
 
 proc drawInterrupts(gameboy: Gameboy) = 
   setCursorPos(90,16)
@@ -271,6 +289,7 @@ proc draw(gameboy: Gameboy; debugger: Debugger) =
   drawTitle(gameboy.cartridge)
   drawInterrupts(gameboy)
   drawPpuMode(gameboy.ppu)
+  drawMemoryLoc(gameboy, debugger.mapAddr) #Default stack pointer
   # OPCode Decoder
   var i = 0
   for x in countdown(debugger.history.len, debugger.history.len - 30):
@@ -297,6 +316,10 @@ proc parseCommand(gameboy: var Gameboy; input: string; debugger: var Debugger): 
     var bp = 0
     if parseHex(args[1], bp) > 0:
       gameboy.cpu.addBreakpoint(cast[uint16](bp))
+  elif "map" in args[0] and 2 == args.len:
+    var address = 0
+    if parseHex(args[1], address) > 0:
+      debugger.mapAddr = address.uint16
   elif "st" in args[0]:
     if args.len > 1:
       for x in countup(1, parseint(args[1])):
@@ -330,4 +353,4 @@ proc debug*(gameboy: var Gameboy; debugger: var Debugger): void =
 
 proc newDebugger*(): Debugger = 
   new result
-  result
+  result.mapAddr = 0xFFFE # Stack Pointer
