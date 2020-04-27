@@ -13,9 +13,9 @@ type
 
 proc readWord(cpu: CPU; address: uint16): uint16 =
   var word: uint16
-  word = cpu.mem.gameboy.readByte(address + 1)
+  word = cpu.mem.gameboy.readByte(address + 1)  # Get MSB
   word = word shl 8 
-  word = bitor(word, cpu.mem.gameboy.readByte(address))
+  word = bitor(word, cpu.mem.gameboy.readByte(address)) #Get LSB
   return word
 
 proc writeWord(cpu: var CPU; address: uint16, word: uint16): void =
@@ -50,14 +50,14 @@ proc popByte(cpu: var CPU): uint8 =
   
 proc pushWord(cpu: var CPU; value: uint16): void =
   # Push word onto the stack. This does NOT calculate any cycles for this.
-  cpu.pushByte(readLsb(value))
   cpu.pushByte(readMsb(value))
+  cpu.pushByte(readLsb(value))
   
 proc popWord(cpu: var CPU): uint16 =
   # Pop word from the stack. This does NOT calculate any cycles for this.
   var value: uint16 = 0
-  value = setMsb(value, cpu.popByte())
   value = setLsb(value, cpu.popByte())
+  value = setMsb(value, cpu.popByte())
   return value
   
 proc call(cpu: var CPU, address: uint16): void =
@@ -1657,8 +1657,8 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.debugStr = "POP BC " & $toHex(cpu.sp) & " (" & $toHex(cpu.bc) & ")"
   of 0xC2:
     var word: uint16
-    word = setMsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 1))
-    word = setLsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 2))
+    word = setLsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 1))
+    word = setMsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 2))
     cpu.pc += 3
     if cpu.zFlag:
       result.tClock = 12
@@ -1677,8 +1677,8 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.debugStr = "JP " & $toHex(word)
   of 0xC4:
     var word: uint16
-    word = setMsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 1))
-    word = setLsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 2))
+    word = setLsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 1))
+    word = setMsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 2))
     cpu.pc += 3 # We increment BEFORE we call. The RET should be the instruction AFTER this one.
     if cpu.zFlag:
       result.tClock = 12
@@ -1730,8 +1730,8 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
 
   of 0xCC:
     var word: uint16
-    word = setMsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 1))
-    word = setLsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 2))
+    word = setLsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 1))
+    word = setMsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 2))
     cpu.pc += 3 # We increment BEFORE we call. The RET should be the instruction AFTER this one.
     if cpu.zFlag:
       cpu.call(word)
@@ -1744,8 +1744,8 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
       result.debugStr = "CALL Z, (missed)"
   of 0xCD:
     var word: uint16
-    word = setMsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 2))
     word = setLsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 1))
+    word = setMsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 2))
     cpu.pc += 3 # We increment BEFORE we call. The RET should be the instruction AFTER this one.
     cpu.call(word)
     result.tClock = 24
@@ -1783,8 +1783,8 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.debugStr = "POP DE " & $toHex(cpu.sp) & " (" & $toHex(cpu.de) & ")"
   of 0xD2:
     var word: uint16
-    word = setMsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 1))
-    word = setLsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 2))
+    word = setLsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 1))
+    word = setMsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 2))
     cpu.pc += 3
     if cpu.cFlag:
       result.tClock = 12
@@ -1797,8 +1797,8 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
       result.debugStr = "JP NC, (" & $toHex(word) & ")"
   of 0xD4:
     var word: uint16
-    word = setMsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 1))
-    word = setLsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 2))
+    word = setLsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 1))
+    word = setMsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 2))
     cpu.pc += 3 # We increment BEFORE we call. The RET should be the instruction AFTER this one.
     if cpu.cFlag:
       result.tClock = 12
@@ -1841,8 +1841,8 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
       result.debugStr = "RET C (missed)"
   of 0xDC:
     var word: uint16
-    word = setMsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 1))
-    word = setLsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 2))
+    word = setLsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 1))
+    word = setMsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 2))
     cpu.pc += 3 # We increment BEFORE we call. The RET should be the instruction AFTER this one.
     if cpu.cFlag:
       cpu.call(word)
