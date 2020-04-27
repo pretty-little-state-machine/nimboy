@@ -8,7 +8,8 @@ type
     cartridge*: Cartridge
     ppu*: PPU
     timer*: Timer
-    internalRam: array[8*1024'u16, uint8] # Internal RAM ($C000-$DFFF, read-only echo at $E000 - $FE00)
+    internalRamBank0*: array[8*4096'u16, uint8] # Internal RAM ($C000-$CFFF)
+    internalRamBank1*: array[8*4096'u16, uint8] # Internal RAM ($D000-$DFFF)
     osc*: uint8         # Internal Oscillator - Master Clock, only needs 8 bits, the Timer.div does the real work.
     intFlag*: uint8     # Interrupt Flags - 0xFF0F
     intEnable*: uint8   # Interrupt Enable Register - 0xFFFF

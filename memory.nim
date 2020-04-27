@@ -12,6 +12,10 @@ proc readByte*(gameboy: Gameboy, address: uint16): uint8 =
     return 1
   if address < 0xC000:
     return gameboy.cartridge.readByte(address)
+  if address < 0xD000:
+    return gameboy.internalRamBank0[address - 0xC000]
+  if address < 0xE000:
+    return gameboy.internalRamBank1[address - 0xD000]
   if address < 0x9FFF:
     return gameboy.ppu.readByte(address)
   if 0xFF0F == address:
@@ -66,14 +70,17 @@ proc writeByte*(gameboy: Gameboy; address: uint16; value: uint8): void =
     gameboy.cartridge.writeByte(address, value)
   elif address < 0xA000:
     gameboy.ppu.writeByte(address, value)
-    return
   elif address < 0xC000:
     gameboy.cartridge.writeByte(address, value)
+  elif address < 0xD000:
+    gameboy.internalRamBank0[address - 0xC000] = value
+  elif address < 0xE000:
+    gameboy.internalRamBank1[address - 0xD000] = value
   #if address < 0x9FFF:
     # TODO
     #gameboy.ppu.writeByte(address, value)
   else:
-    return
+    discard
   if 0xFF0F == address:
     gameboy.intFlag = value
   # PPU Allocations
