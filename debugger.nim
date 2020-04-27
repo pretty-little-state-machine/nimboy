@@ -108,20 +108,21 @@ proc drawTitle(cartridge: Cartridge) =
 
 proc drawMemoryLoc(gameboy: Gameboy; address: uint16) = 
   # Draws a memory location starting DOWN from the address
-  setCursorPos(24, 3)
+  setCursorPos(28, 2)
+  stdout.write("┬────────────┬")
+  setCursorPos(28, 3)
   stdout.write("│ Memory Map │")
-  setCursorPos(24, 4)
+  setCursorPos(28, 4)
   stdout.write("├────────────┤")
   var cursor = 5
   var tmpAddr = address.uint16
   for x in countdown(address, address - 31):
-    setCursorPos(24, cursor)
+    setCursorPos(28, cursor)
     stdout.write("│ " & $toHex(tmpAddr))
-    setCursorPos(32, cursor)
+    setCursorPos(36, cursor)
     stdout.write($toHex(readByte(gameboy, tmpAddr)) & "   │")
     tmpAddr -= 1
     cursor += 1
-
 proc drawInterrupts(gameboy: Gameboy) = 
   setCursorPos(90,16)
   stdout.write ("│ Joypad: ")
