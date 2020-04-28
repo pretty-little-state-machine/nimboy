@@ -420,18 +420,18 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.debugStr = "STOP"
   of 0x11:
     let word = cpu.readWord(cpu.pc + 1) # Decode only
-    cpu.de = setLsb(cpu.hl, cpu.mem.gameboy.readByte(cpu.pc + 1))
-    cpu.de = setMsb(cpu.hl, cpu.mem.gameboy.readByte(cpu.pc + 2))
+    cpu.de = setLsb(cpu.de, cpu.mem.gameboy.readByte(cpu.pc + 1))
+    cpu.de = setMsb(cpu.de, cpu.mem.gameboy.readByte(cpu.pc + 2))
     cpu.pc += 3
     result.tClock = 12
     result.mClock = 3
-    result.debugStr = "LD DE (" & $toHex(word) & ")"
+    result.debugStr = "LD DE, (" & $toHex(word) & ")"
   of 0x12:
     cpu.mem.gameboy.writeByte(cpu.de, cpu.a)
     cpu.pc += 1
     result.tClock = 8
     result.mClock = 2
-    result.debugStr = "LD DE (" & $toHex(cpu.de) & ") " & $toHex(cpu.a)
+    result.debugStr = "LD DE (" & $toHex(cpu.de) & "), A " & $toHex(cpu.a)
   of 0x13:
     cpu.de += 1
     cpu.pc += 1
