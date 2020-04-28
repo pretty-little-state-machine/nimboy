@@ -4,6 +4,7 @@ import gameboy
 import cartridge
 import sdl2
 import os
+import strutils
 import renderer
 import types
 
@@ -17,7 +18,6 @@ proc main =
   let gbRenderer = getRenderer("Nimboy", 160, 144)
   let tileMapRenderer = getRenderer("Tile Data", 256 * tileDebuggerScale, 256 * tileDebuggerScale)
 
-  sleep(3000)
   # Game loop, draws each frame
   var 
     gb = newGameboy()
@@ -48,7 +48,11 @@ proc main =
     if vBlank == gb.ppu.mode:
       refresh = true
 
-    echo gb.step().debugStr
+    let str = gb.step().debugStr
+    if str.contains("UNKNOWN OPCODE"):
+      quit("")
+    else:
+      echo str
     #debug(gb, debugger)
     limitFrameRate()
 main()
