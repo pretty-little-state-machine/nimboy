@@ -340,9 +340,9 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.debugStr = "LD B " & $toHex(byte)
   of 0x07:
     cpu.a = cpu.doRollLeft(cpu.a, true)
-    cpu.pc += 2
-    result.tClock = 8
-    result.mClock = 2
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
     result.debugStr = "RLC A"
   of 0x08:
     let address = cpu.readWord(cpu.pc + 1) 
@@ -408,9 +408,9 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.debugStr = "LD C " & $toHex(byte)
   of 0x0F:
     cpu.a = cpu.doRollRight(cpu.a, true)
-    cpu.pc += 2
-    result.tClock = 8
-    result.mClock = 2
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
     result.debugStr = "RRC A"
   of 0x10:
     cpu.mem.gameboy.stopped = true
@@ -473,9 +473,9 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.debugStr = "LD D " & $toHex(byte)
   of 0x17:
     cpu.a = cpu.doRollLeft(cpu.a, false)
-    cpu.pc += 2
-    result.tClock = 8
-    result.mClock = 2
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
     result.debugStr = "RL A"
   of 0x18:
     let signed = toSigned(cpu.mem.gameboy.readbyte(cpu.pc + 1))
@@ -541,9 +541,9 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.debugStr = "LD E " & $toHex(byte)
   of 0x1F:
     cpu.a = cpu.doRollRight(cpu.a, false)
-    cpu.pc += 2
-    result.tClock = 8
-    result.mClock = 2
+    cpu.pc += 1
+    result.tClock = 4
+    result.mClock = 1
     result.debugStr = "RR A"
   of 0x20:
     let signed = toSigned(cpu.mem.gameboy.readbyte(cpu.pc + 1))
