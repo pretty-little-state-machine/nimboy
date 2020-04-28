@@ -87,14 +87,15 @@ proc registerToHz*(lowReg: uint8; highReg: uint8): uint32 =
   # This magic number is the crystal frequency of the gameboy's 4Mhz clock.
   result = 4194304'u32 div uint32(32 * (2048 - word))
 
-proc genRectWave(settings: AudioSettings; bytesToWrite: uint32): seq[int16] = 
+proc genRectWave(settings: AudioSettings; bytesToWrite: uint32; frequency: uint16): seq[int16] = 
   # Generates a rectangle wave
   # TODO: Envelopes and sweeps
   let
-    toneHz = 443'u32
-    toneVolume: int16 = 3_000 # 32767 is loudest
+    toneHz = frequency
+    toneVolume: int16 = 1_000 # 32767 is loudest - KEEP THIS LOW
     squareWavePeriod = settings.sampleRate div toneHz
 
+  # This must be written twice to get the appropriate tone.
   for x in countup(0.uint, bytesToWrite):
     if 0 == (x div (squareWavePeriod div 2)) mod 2:
       result.add(toneVolume)
@@ -107,7 +108,8 @@ proc testSound*(): void =
   # Generates a stereo test sound.
   # TODO: Figure out the magic behind time vs. samples vs channels vs settings.
   let 
-    bufferSize = 48800'u
+    lengthMs = 500 # 1 Second
+    bufferSize = 12 * lengthMs
     bytesPerSample: uint = sizeof(int16) * 2
 
   var settings: AudioSettings
@@ -116,13 +118,13 @@ proc testSound*(): void =
   settings.samples = (settings.sampleRate * bytesPerSample div 120)
   let 
     audioHardware = setupAudioOutput(settings)
-    bytesToWrite = bufferSize * bytesPerSample
+    bytesToWrite = bufferSize * bytesPerSample.int
   echo $settings.samples
   echo $bytesToWrite
 
   audioHardware.audioDeviceID.pauseAudioDevice(0.cint) # Play
 
-  let wave = genRectWave(settings, uint32(bytesToWrite))
+  let wave = genRectWave(settings, uint32(bytesToWrite), 440)
   if 0 > audioHardware.audioDeviceID.queueAudio(unsafeAddr wave[0], uint32(len(wave) * sizeof(int16))):
     echo $sdl2.getError()
     quit "Failed to queue audio!"
