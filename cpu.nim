@@ -356,7 +356,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     cpu.hl = setLsb(cpu.hl, byte)
     byte = cpu.doAdd(readMsb(cpu.hl), readMsb(cpu.bc), true)
     cpu.hl = setMsb(cpu.hl, byte)
-    cpu.setFlagN(true)
+    cpu.setFlagN(false)
     cpu.pc += 1
     result.tClock = 8
     result.mClock = 2
@@ -489,7 +489,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     cpu.hl = setLsb(cpu.hl, byte)
     byte = cpu.doAdd(readMsb(cpu.hl), readMsb(cpu.de), true)
     cpu.hl = setMsb(cpu.hl, byte)
-    cpu.setFlagN(true)
+    cpu.setFlagN(false)
     cpu.pc += 1
     result.tClock = 8
     result.mClock = 2
