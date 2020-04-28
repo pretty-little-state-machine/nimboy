@@ -50,6 +50,7 @@ proc main =
 
     let str = gb.step().debugStr
     if str.contains("UNKNOWN OPCODE"):
+      echo str
       quit("")
     else:
       echo str
