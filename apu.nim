@@ -19,7 +19,9 @@
 # https://github.com/Rust-SDL2/rust-sdl2/blob/master/examples/audio-queue-squarewave.rs
 # https://davidgow.net/handmadepenguin/ch8.html
 #
-import math
+# Online tone generator: https://www.szynalski.com/tone-generator/
+# Useful for testing that our rectangles are correct.
+#
 import bitops
 import sdl2, sdl2/audio
 import types
@@ -85,32 +87,43 @@ proc registerToHz*(lowReg: uint8; highReg: uint8): uint32 =
   # This magic number is the crystal frequency of the gameboy's 4Mhz clock.
   result = 4194304'u32 div uint32(32 * (2048 - word))
 
-proc genRectWave(settings: AudioSettings; bytesToWrite: uint32): seq[int] = 
+proc genRectWave(settings: AudioSettings; bytesToWrite: uint32): seq[int16] = 
+  # Generates a rectangle wave
+  # TODO: Envelopes and sweeps
   let
-    toneHz = 2500'u32
-    toneVolume = 3_000 # 32767 is loudest
+    toneHz = 443'u32
+    toneVolume: int16 = 3_000 # 32767 is loudest
     squareWavePeriod = settings.sampleRate div toneHz
 
   for x in countup(0.uint, bytesToWrite):
     if 0 == (x div (squareWavePeriod div 2)) mod 2:
       result.add(toneVolume)
+      result.add(toneVolume)
     else:
+      result.add(-toneVolume)
       result.add(-toneVolume)
 
 proc testSound*(): void = 
+  # Generates a stereo test sound.
+  # TODO: Figure out the magic behind time vs. samples vs channels vs settings.
+  let 
+    bufferSize = 48800'u
+    bytesPerSample: uint = sizeof(int16) * 2
+
   var settings: AudioSettings
   settings.sampleRate = 48_000
   settings.numChannels = 2
-  settings.samples = 4094
+  settings.samples = (settings.sampleRate * bytesPerSample div 120)
+  let 
+    audioHardware = setupAudioOutput(settings)
+    bytesToWrite = bufferSize * bytesPerSample
+  echo $settings.samples
+  echo $bytesToWrite
 
-  let audioHardware = setupAudioOutput(settings)
   audioHardware.audioDeviceID.pauseAudioDevice(0.cint) # Play
 
-  let nBytesPerSample = audioHardware.hardwareSpec.channels * (SDL_AUDIO_BITSIZE(audioHardware.hardwareSpec.format.uint32) div 8).uint8
-  echo nBytesPerSample
-  let wave = genRectWave(settings, uint32(8000 * nBytesPerSample))
-  
-  if 0 > audioHardware.audioDeviceID.queueAudio(unsafeAddr wave[0], uint32(len(wave) * sizeof(int))):
+  let wave = genRectWave(settings, uint32(bytesToWrite))
+  if 0 > audioHardware.audioDeviceID.queueAudio(unsafeAddr wave[0], uint32(len(wave) * sizeof(int16))):
     echo $sdl2.getError()
     quit "Failed to queue audio!"
   
