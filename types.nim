@@ -10,6 +10,7 @@ type
     timer*: Timer
     internalRamBank0*: array[8*4096'u16, uint8] # Internal RAM ($C000-$CFFF)
     internalRamBank1*: array[8*4096'u16, uint8] # Internal RAM ($D000-$DFFF)
+    highRam*: array[8*128'u16, uint8] # High RAM ($FF80-FFFE)
     osc*: uint8         # Internal Oscillator - Master Clock, only needs 8 bits, the Timer.div does the real work.
     intFlag*: uint8     # Interrupt Flags - 0xFF0F
     intEnable*: uint8   # Interrupt Enable Register - 0xFFFF

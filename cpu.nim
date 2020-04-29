@@ -1839,7 +1839,12 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
       result.tClock = 8
       result.mClock = 2
       result.debugStr = "RET C (missed)"
-
+  of 0xD9:
+    cpu.ret()
+    cpu.eiPending = true # Will enable interrupts AFTER the next instructino
+    result.tClock = 16
+    result.mClock = 4
+    result.debugStr = "RETI"
   of 0xDA:
     let word = cpu.readWord(cpu.pc + 1)
     cpu.pc += 3
@@ -2023,7 +2028,15 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.tClock = 16
     result.mClock = 4
     result.debugStr = "RST 30"
-
+  of 0xFA:
+    var word: uint16
+    word = setLsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 1))
+    word = setMsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 2))
+    cpu.a = cpu.mem.gameboy.readByte(word)
+    cpu.pc += 3
+    result.tClock = 16
+    result.mClock = 4
+    result.debugStr = "LD A (" & $tohex(word) & ")"
   of 0xFB:
     cpu.pc += 1
     cpu.eiPending = true # Interrupts are NOT immediately enabled!

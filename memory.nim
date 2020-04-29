@@ -61,6 +61,12 @@ proc readByte*(gameboy: Gameboy, address: uint16): uint8 =
     return gameboy.ppu.bgpd
   if 0xFF6A == address:     # Gameboy Color Only
     return gameboy.ppu.ocps
+  # TODO THESE REGISTERS
+  if address < 0xFF80:
+    return 0'u8
+  # High RAM
+  if address < 0xFFFF:
+    return gameboy.highRam[address - 0xFF80]
   # Global Interrupts Table
   if 0xFFFF == address:
     return gameboy.intEnable
@@ -122,6 +128,14 @@ proc writeByte*(gameboy: Gameboy; address: uint16; value: uint8): void =
     gameboy.ppu.bgpd = value
   if 0xFF6A == address:     # Gameboy Color Only
     gameboy.ppu.ocps = value
+  # TODO THESE REGISTERS
+  if address < 0xFF80:
+    discard
+    return
+  # High RAM
+  if address < 0xFFFF:
+    gameboy.highRam[address - 0xFF80] = value
+    return
   if 0xFFFF == address:
     gameboy.intEnable = value
 
