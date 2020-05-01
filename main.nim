@@ -56,6 +56,6 @@ proc main =
       quit("")
     else:
       echo str
-    #debug(gb, debugger)
+    # debug(gb, debugger)
     limitFrameRate()
 main()
