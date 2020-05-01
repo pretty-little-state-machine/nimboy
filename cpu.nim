@@ -290,6 +290,23 @@ proc doSwap(cpu: var CPU; value: uint8): uint8 =
   cpu.setFlagC(false)
   result = newValue
 
+proc doBitTest(cpu: var CPU; value: uint8, bit: uint8): void =
+  var mask: uint8 = uint8(1) shl bit
+  var newValue = bitand(value, mask)
+  cpu.setFlagZ(0 == newValue)
+  cpu.setFlagN(false)
+  cpu.setFlagH(true)
+
+proc doBitSet(cpu:var CPU; value: uint8, bit: uint8): uint8 =
+  var mask: uint8 = uint8(1) shl bit
+  var newValue = bitor(value, mask)
+  result = newValue
+
+proc doBitReset(cpu:var CPU; value: uint8, bit: uint8): uint8 =
+  var mask: uint8 = uint8(1) shl bit
+  var newValue = bitand(value, not mask)
+  result = newValue
+
 template toSigned(x: uint8): int8 = cast[int8](x)
 
 proc execute_cb (cpu: var CPU; opcode: uint8): TickResult =
