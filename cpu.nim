@@ -241,10 +241,23 @@ proc doRollLeft(cpu: var CPU; value: uint8, throughCarry: bool): uint8 =
   cpu.setFlagC(newCarry)
   result = newValue
 
-proc doShiftRight(cpu: var CPU; value: uint8): uint8 =
+proc doArithmeticShiftRigth(cpu: var CPU; value: uint8): uint8 =
   var newValue: uint8 = value
   var newCarry: bool = bitand(newValue, 0x01) == 0x01
   var newSevenBit:uint8 = bitand(newValue, 0x80)
+
+  newValue = newValue shr 1
+  newValue = bitand(bitor(newValue, newSevenBit), 0xFF)
+  cpu.setFlagC(newCarry)
+  cpu.setFlagZ(0 == newValue)
+  cpu.setFlagN(false)
+  cpu.setFlagH(false)
+  result = newValue
+
+proc doLogicalShiftRigth(cpu: var CPU; value: uint8): uint8 =
+  var newValue: uint8 = value
+  var newCarry: bool = bitand(newValue, 0x01) == 0x01
+  var newSevenBit:uint8 = 0
 
   newValue = newValue shr 1
   newValue = bitand(bitor(newValue, newSevenBit), 0xFF)
@@ -533,51 +546,51 @@ proc execute_cb (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 2
     result.debugStr = "SLA A"
   of 0x28:
-    cpu.bc = setMsb(cpu.bc, cpu.doShiftRight(readMsb(cpu.bc)))
+    cpu.bc = setMsb(cpu.bc, cpu.doArithmeticShiftRigth(readMsb(cpu.bc)))
     cpu.pc += 2
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "SRA B"
   of 0x29:
-    cpu.bc = setLsb(cpu.bc, cpu.doShiftRight(readLsb(cpu.bc)))
+    cpu.bc = setLsb(cpu.bc, cpu.doArithmeticShiftRigth(readLsb(cpu.bc)))
     cpu.pc += 2
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "SRA C"
   of 0x2A:
-    cpu.de = setMsb(cpu.de, cpu.doShiftRight(readMsb(cpu.de)))
+    cpu.de = setMsb(cpu.de, cpu.doArithmeticShiftRigth(readMsb(cpu.de)))
     cpu.pc += 2
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "SRA D"
   of 0x2B:
-    cpu.de = setLsb(cpu.de, cpu.doShiftRight(readLsb(cpu.de)))
+    cpu.de = setLsb(cpu.de, cpu.doArithmeticShiftRigth(readLsb(cpu.de)))
     cpu.pc += 2
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "SRA E"
   of 0x2C:
-    cpu.hl = setMsb(cpu.hl, cpu.doShiftRight(readMsb(cpu.hl)))
+    cpu.hl = setMsb(cpu.hl, cpu.doArithmeticShiftRigth(readMsb(cpu.hl)))
     cpu.pc += 2
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "SRA H"
   of 0x2D:
-    cpu.hl = setLsb(cpu.hl, cpu.doShiftRight(readLsb(cpu.hl)))
+    cpu.hl = setLsb(cpu.hl, cpu.doArithmeticShiftRigth(readLsb(cpu.hl)))
     cpu.pc += 2
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "SRA L"
   of 0x2E:
     var value = cpu.mem.gameboy.readByte(cpu.hl)
-    value =  cpu.doShiftRight(value)
+    value =  cpu.doArithmeticShiftRigth(value)
     cpu.mem.gameboy.writeByte(cpu.hl, value)
     cpu.pc += 2
     result.tClock = 16
     result.mClock = 4
     result.debugStr = "SRA (HL) (" & $toHex(cpu.hl) & ")"
   of 0x2F:
-    cpu.a = cpu.doShiftRight(cpu.a)
+    cpu.a = cpu.doArithmeticShiftRigth(cpu.a)
     cpu.pc += 2
     result.tClock = 8
     result.mClock = 2
@@ -632,6 +645,56 @@ proc execute_cb (cpu: var CPU; opcode: uint8): TickResult =
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "SWAP L"
+  of 0x38:
+    cpu.bc = setMsb(cpu.bc, cpu.doLogicalShiftRigth(readMsb(cpu.bc)))
+    cpu.pc += 2
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "SRL B"
+  of 0x39:
+    cpu.bc = setLsb(cpu.bc, cpu.doLogicalShiftRigth(readLsb(cpu.bc)))
+    cpu.pc += 2
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "SRL C"
+  of 0x3A:
+    cpu.de = setMsb(cpu.de, cpu.doLogicalShiftRigth(readMsb(cpu.de)))
+    cpu.pc += 2
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "SRL D"
+  of 0x3B:
+    cpu.de = setLsb(cpu.de, cpu.doLogicalShiftRigth(readLsb(cpu.de)))
+    cpu.pc += 2
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "SRL E"
+  of 0x3C:
+    cpu.hl = setMsb(cpu.hl, cpu.doLogicalShiftRigth(readMsb(cpu.hl)))
+    cpu.pc += 2
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "SRL H"
+  of 0x3D:
+    cpu.hl = setLsb(cpu.hl, cpu.doLogicalShiftRigth(readLsb(cpu.hl)))
+    cpu.pc += 2
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "SRL L"
+  of 0x3E:
+    var value = cpu.mem.gameboy.readByte(cpu.hl)
+    value =  cpu.doLogicalShiftRigth(value)
+    cpu.mem.gameboy.writeByte(cpu.hl, value)
+    cpu.pc += 2
+    result.tClock = 16
+    result.mClock = 4
+    result.debugStr = "SRL (HL) (" & $toHex(cpu.hl) & ")"
+  of 0x3F:
+    cpu.a = cpu.doLogicalShiftRigth(cpu.a)
+    cpu.pc += 2
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "SRL A"
   else:
     result.tClock = 0
     result.mClock = 0
