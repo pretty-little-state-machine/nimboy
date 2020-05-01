@@ -49,7 +49,10 @@ proc main =
       refresh = true
 
     let str = gb.step().debugStr
-    if str.contains("UNKNOWN OPCODE"):
+    if str.contains("UNKNOWN OPCODE") or 
+      str.contains("BREAK!") or 
+      str.contains("UNKNOWN 0xCB OPCODE"):
+      echo str
       quit("")
     else:
       echo str
