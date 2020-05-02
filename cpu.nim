@@ -753,8 +753,8 @@ proc execute_cb (cpu: var CPU; opcode: uint8): TickResult =
     value =  cpu.doBitReset(value, 0)
     cpu.mem.gameboy.writeByte(cpu.hl, value)
     cpu.pc += 2
-    result.tClock = 12
-    result.mClock = 3
+    result.tClock = 16
+    result.mClock = 4
     result.debugStr = "RES 0, (HL) (" & $toHex(cpu.hl) & ")"
   of 0x87:
     cpu.a = cpu.doBitReset(cpu.a, 0)
@@ -803,8 +803,8 @@ proc execute_cb (cpu: var CPU; opcode: uint8): TickResult =
     value =  cpu.doBitReset(value, 1)
     cpu.mem.gameboy.writeByte(cpu.hl, value)
     cpu.pc += 2
-    result.tClock = 12
-    result.mClock = 3
+    result.tClock = 16
+    result.mClock = 4
     result.debugStr = "RES 1, (HL) (" & $toHex(cpu.hl) & ")"
   of 0x8F:
     cpu.a = cpu.doBitReset(cpu.a, 1)
@@ -853,8 +853,8 @@ proc execute_cb (cpu: var CPU; opcode: uint8): TickResult =
     value =  cpu.doBitReset(value, 2)
     cpu.mem.gameboy.writeByte(cpu.hl, value)
     cpu.pc += 2
-    result.tClock = 12
-    result.mClock = 3
+    result.tClock = 16
+    result.mClock = 4
     result.debugStr = "RES 2, (HL) (" & $toHex(cpu.hl) & ")"
   of 0x97:
     cpu.a = cpu.doBitReset(cpu.a, 2)
@@ -903,8 +903,8 @@ proc execute_cb (cpu: var CPU; opcode: uint8): TickResult =
     value =  cpu.doBitReset(value, 3)
     cpu.mem.gameboy.writeByte(cpu.hl, value)
     cpu.pc += 2
-    result.tClock = 12
-    result.mClock = 3
+    result.tClock = 16
+    result.mClock = 4
     result.debugStr = "RES 3, (HL) (" & $toHex(cpu.hl) & ")"
   of 0x9F:
     cpu.a = cpu.doBitReset(cpu.a, 3)
@@ -953,8 +953,8 @@ proc execute_cb (cpu: var CPU; opcode: uint8): TickResult =
     value =  cpu.doBitReset(value, 4)
     cpu.mem.gameboy.writeByte(cpu.hl, value)
     cpu.pc += 2
-    result.tClock = 12
-    result.mClock = 3
+    result.tClock = 16
+    result.mClock = 4
     result.debugStr = "RES 4, (HL) (" & $toHex(cpu.hl) & ")"
   of 0xA7:
     cpu.a = cpu.doBitReset(cpu.a, 4)
@@ -1003,8 +1003,8 @@ proc execute_cb (cpu: var CPU; opcode: uint8): TickResult =
     value =  cpu.doBitReset(value, 5)
     cpu.mem.gameboy.writeByte(cpu.hl, value)
     cpu.pc += 2
-    result.tClock = 12
-    result.mClock = 3
+    result.tClock = 16
+    result.mClock = 4
     result.debugStr = "RES 5, (HL) (" & $toHex(cpu.hl) & ")"
   of 0xAF:
     cpu.a = cpu.doBitReset(cpu.a, 5)
@@ -1053,8 +1053,8 @@ proc execute_cb (cpu: var CPU; opcode: uint8): TickResult =
     value =  cpu.doBitReset(value, 6)
     cpu.mem.gameboy.writeByte(cpu.hl, value)
     cpu.pc += 2
-    result.tClock = 12
-    result.mClock = 3
+    result.tClock = 16
+    result.mClock = 4
     result.debugStr = "RES 6, (HL) (" & $toHex(cpu.hl) & ")"
   of 0xB7:
     cpu.a = cpu.doBitReset(cpu.a, 6)
@@ -1103,8 +1103,8 @@ proc execute_cb (cpu: var CPU; opcode: uint8): TickResult =
     value =  cpu.doBitReset(value, 7)
     cpu.mem.gameboy.writeByte(cpu.hl, value)
     cpu.pc += 2
-    result.tClock = 12
-    result.mClock = 3
+    result.tClock = 16
+    result.mClock = 4
     result.debugStr = "RES 7, (HL) (" & $toHex(cpu.hl) & ")"
   of 0xBF:
     cpu.a = cpu.doBitReset(cpu.a, 7)
@@ -1153,8 +1153,8 @@ proc execute_cb (cpu: var CPU; opcode: uint8): TickResult =
     value =  cpu.doBitSet(value, 0)
     cpu.mem.gameboy.writeByte(cpu.hl, value)
     cpu.pc += 2
-    result.tClock = 12
-    result.mClock = 3
+    result.tClock = 16
+    result.mClock = 4
     result.debugStr = "SET 0, (HL) (" & $toHex(cpu.hl) & ")"
   of 0xC7:
     cpu.a = cpu.doBitSet(cpu.a, 0)
@@ -1203,8 +1203,8 @@ proc execute_cb (cpu: var CPU; opcode: uint8): TickResult =
     value =  cpu.doBitSet(value, 1)
     cpu.mem.gameboy.writeByte(cpu.hl, value)
     cpu.pc += 2
-    result.tClock = 12
-    result.mClock = 3
+    result.tClock = 16
+    result.mClock = 4
     result.debugStr = "SET 1, (HL) (" & $toHex(cpu.hl) & ")"
   of 0xCF:
     cpu.a = cpu.doBitSet(cpu.a, 1)
@@ -1253,8 +1253,8 @@ proc execute_cb (cpu: var CPU; opcode: uint8): TickResult =
     value =  cpu.doBitSet(value, 2)
     cpu.mem.gameboy.writeByte(cpu.hl, value)
     cpu.pc += 2
-    result.tClock = 12
-    result.mClock = 3
+    result.tClock = 16
+    result.mClock = 4
     result.debugStr = "SET 2, (HL) (" & $toHex(cpu.hl) & ")"
   of 0xD7:
     cpu.a = cpu.doBitSet(cpu.a, 2)
@@ -1303,8 +1303,8 @@ proc execute_cb (cpu: var CPU; opcode: uint8): TickResult =
     value =  cpu.doBitSet(value, 3)
     cpu.mem.gameboy.writeByte(cpu.hl, value)
     cpu.pc += 2
-    result.tClock = 12
-    result.mClock = 3
+    result.tClock = 16
+    result.mClock = 4
     result.debugStr = "SET 3, (HL) (" & $toHex(cpu.hl) & ")"
   of 0xDF:
     cpu.a = cpu.doBitSet(cpu.a, 3)
@@ -1353,8 +1353,8 @@ proc execute_cb (cpu: var CPU; opcode: uint8): TickResult =
     value =  cpu.doBitSet(value, 4)
     cpu.mem.gameboy.writeByte(cpu.hl, value)
     cpu.pc += 2
-    result.tClock = 12
-    result.mClock = 3
+    result.tClock = 16
+    result.mClock = 4
     result.debugStr = "SET 4, (HL) (" & $toHex(cpu.hl) & ")"
   of 0xE7:
     cpu.a = cpu.doBitSet(cpu.a, 4)
@@ -1403,8 +1403,8 @@ proc execute_cb (cpu: var CPU; opcode: uint8): TickResult =
     value =  cpu.doBitSet(value, 5)
     cpu.mem.gameboy.writeByte(cpu.hl, value)
     cpu.pc += 2
-    result.tClock = 12
-    result.mClock = 3
+    result.tClock = 16
+    result.mClock = 4
     result.debugStr = "SET 5, (HL) (" & $toHex(cpu.hl) & ")"
   of 0xEF:
     cpu.a = cpu.doBitSet(cpu.a, 5)
@@ -1453,8 +1453,8 @@ proc execute_cb (cpu: var CPU; opcode: uint8): TickResult =
     value =  cpu.doBitSet(value, 6)
     cpu.mem.gameboy.writeByte(cpu.hl, value)
     cpu.pc += 2
-    result.tClock = 12
-    result.mClock = 3
+    result.tClock = 16
+    result.mClock = 4
     result.debugStr = "SET 6, (HL) (" & $toHex(cpu.hl) & ")"
   of 0xF7:
     cpu.a = cpu.doBitSet(cpu.a, 6)
@@ -1503,8 +1503,8 @@ proc execute_cb (cpu: var CPU; opcode: uint8): TickResult =
     value =  cpu.doBitSet(value, 7)
     cpu.mem.gameboy.writeByte(cpu.hl, value)
     cpu.pc += 2
-    result.tClock = 12
-    result.mClock = 3
+    result.tClock = 16
+    result.mClock = 4
     result.debugStr = "SET 7, (HL) (" & $toHex(cpu.hl) & ")"
   of 0xFF:
     cpu.a = cpu.doBitSet(cpu.a, 7)
