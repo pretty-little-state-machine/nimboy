@@ -3265,7 +3265,6 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.tClock = 4
     result.mClock = 1
     result.debugStr = "CP A"
-
   of 0xC0:
     cpu.pc += 1
     if cpu.zFlag:
@@ -3363,7 +3362,6 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
   of 0xCB:
     let cb_opcode = cpu.mem.gameboy.readbyte(cpu.pc + 1)
     result = cpu.execute_cb(cb_opcode)
-
   of 0xCC:
     let word = cpu.readWord(cpu.pc + 1)
     cpu.pc += 3 # We increment BEFORE we call. The RET should be the instruction AFTER this one.
@@ -3425,6 +3423,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
       result.tClock = 16
       result.mClock = 4
       result.debugStr = "JP NC, (" & $toHex(word) & ")"
+  # NO oxD3
   of 0xD4:
     let word = cpu.readWord(cpu.pc + 1)
     cpu.pc += 3 # We increment BEFORE we call. The RET should be the instruction AFTER this one.
@@ -3485,7 +3484,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
       result.tClock = 8
       result.mClock = 2
       result.debugStr = "JP C (missed)"
-
+  # NO 0xDB
   of 0xDC:
     let word = cpu.readWord(cpu.pc + 1)
     cpu.pc += 3 # We increment BEFORE we call. The RET should be the instruction AFTER this one.
@@ -3498,7 +3497,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
       result.tClock = 12
       result.mClock = 3
       result.debugStr = "CALL C, (missed)"
-
+  # NO 0xDD
   of 0xDE:
     let byte = cpu.mem.gameboy.readbyte(cpu.pc + 1)
     cpu.opSbc(byte)
@@ -3534,7 +3533,8 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "LD (C) A"
-
+  # NO 0xE3
+  # NO 0xE4
   of 0xE5:
     cpu.pc += 1
     cpu.pushWord(cpu.hl)
@@ -3584,14 +3584,15 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.debugStr = "JP HL  (" & $toHex(cpu.hl) & ")"
   of 0xEA:
     var word: uint16
-    word = setLsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 1))
-    word = setMsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 2))
+    word = cpu.readWord(cpu.pc+1)
     cpu.mem.gameboy.writeByte(word, cpu.a)
     cpu.pc += 3
     result.tClock = 16
     result.mClock = 4
     result.debugStr = "LD (" & $tohex(word) & ") A"
-
+  # NO 0XEB
+  # NO 0XEC
+  # NO 0XED
   of 0xEE:
     let byte = cpu.mem.gameboy.readbyte(cpu.pc + 1)
     cpu.opXor(byte)
@@ -3635,7 +3636,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.tClock = 4
     result.mClock = 1
     result.debugStr = "DI"
-
+  # NO 0xF4
   of 0xF5:
     cpu.pc += 1
     cpu.pushByte(cpu.a)
