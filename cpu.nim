@@ -3657,10 +3657,40 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.tClock = 16
     result.mClock = 4
     result.debugStr = "RST 30"
+  of 0xF8:
+    var byte: uint8 = 0
+    var offset: uint8 = 0
+    var signed = toSigned(cpu.mem.gameboy.readbyte(cpu.pc + 1))
+    var newSp = cpu.sp
+    if signed < 0:
+      offset = uint8(abs(signed))
+      byte = cpu.doSub(readLsb(newSp), offset, false)
+      newSp = setLsb(newSp, byte)
+      byte = cpu.doSub(readMsb(newSp), 0, true)
+      newSp = setMsb(newSp, byte)
+    else:
+      offset = uint8(abs(signed))
+      byte = cpu.doAdd(readLsb(newSp), offset, false)
+      newSp = setLsb(newSp, byte)
+      byte = cpu.doAdd(readMsb(newSp), 0, true)
+      newSp = setMsb(newSp, byte)
+    cpu.hl = newSp
+    cpu.setFlagZ(false)
+    cpu.setFlagN(false)
+    signed = toSigned(cpu.mem.gameboy.readbyte(cpu.pc + 1))
+    cpu.pc += 2
+    result.tClock = 12
+    result.mClock = 3
+    result.debugStr = "LD HL, SP + r8 (" & $toHex(signed) & ")"
+  of 0xF9:
+    cpu.sp = cpu.hl
+    cpu.pc += 1
+    result.tClock = 8
+    result.mClock = 2
+    result.debugStr = "LD SP, HL"
   of 0xFA:
     var word: uint16
-    word = setLsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 1))
-    word = setMsb(word, cpu.mem.gameboy.readbyte(cpu.pc + 2))
+    word = cpu.readWord(cpu.pc + 1)
     cpu.a = cpu.mem.gameboy.readByte(word)
     cpu.pc += 3
     result.tClock = 16
@@ -3672,6 +3702,8 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.tClock = 4
     result.mClock = 1
     result.debugStr = "EI"
+  # NO 0XFC
+  # NO 0Xfe
   of 0xFE:
     let byte = cpu.mem.gameboy.readbyte(cpu.pc + 1)
     cpu.opCp(byte)
