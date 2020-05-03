@@ -8,6 +8,8 @@ export types.CPUMemory
 proc readByte*(gameboy: Gameboy, address: uint16): uint8 =
   if address < 0x8000:
     return gameboy.cartridge.readByte(address)
+  if address < 0x9FFF:
+    return gameboy.ppu.readByte(address)
   if address < 0xA000:
     return 1
   if address < 0xC000:
@@ -16,8 +18,6 @@ proc readByte*(gameboy: Gameboy, address: uint16): uint8 =
     return gameboy.internalRamBank0[address - 0xC000]
   if address < 0xE000:
     return gameboy.internalRamBank1[address - 0xD000]
-  if address < 0x9FFF:
-    return gameboy.ppu.readByte(address)
   if 0xFF0F == address:
     return gameboy.intFlag
   # PPU Allocations
