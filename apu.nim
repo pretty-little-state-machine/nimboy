@@ -92,24 +92,45 @@ proc genRectWave(settings: AudioSettings; bytesToWrite: uint32; frequency: uint1
   # TODO: Envelopes and sweeps
   let
     toneHz = frequency
-    toneVolume: int16 = 1_000 # 32767 is loudest - KEEP THIS LOW
+    toneVolume: int16 = 1000 # 32767 is loudest - KEEP THIS LOW
     squareWavePeriod = settings.sampleRate div toneHz
 
+  var pan: int16 = 0
+  var panDir: int16 = 1
+  var rightTone: int16 = 0
+  var leftTone: int16 = 0
+
   # This must be written twice to get the appropriate tone.
+  # one for left channel another for right.
+
   for x in countup(0.uint, bytesToWrite):
     if 0 == (x div (squareWavePeriod div 2)) mod 2:
-      result.add(toneVolume)
-      result.add(toneVolume)
+      leftTone = toneVolume-pan
+      rightTone = toneVolume+pan
+      result.add(leftTone)
+      result.add(rightTone)
     else:
-      result.add(-toneVolume)
-      result.add(-toneVolume)
+      leftTone = toneVolume-pan
+      rightTone = toneVolume+pan
+      result.add(-leftTone)
+      result.add(-rightTone)
+
+    if 0 == (x div (squareWavePeriod div 8)) mod 8:
+      pan += panDir
+        
+      if pan > toneVolume:
+        panDir = -1
+        pan = toneVolume
+      if pan < -toneVolume:
+        panDir = 1
+        pan = -toneVolume
 
 proc testSound*(): void = 
   # Generates a stereo test sound.
   # TODO: Figure out the magic behind time vs. samples vs channels vs settings.
   let 
     lengthMs = 500 # 1 Second
-    bufferSize = 12 * lengthMs
+    bufferSize = 100 * lengthMs
     bytesPerSample: uint = sizeof(int16) * 2
 
   var settings: AudioSettings
