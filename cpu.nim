@@ -155,15 +155,15 @@ proc doAdd(cpu: var CPU, value1: uint8, value2: uint8, throughCarry: bool):uint8
 
 proc opAdd(cpu: var CPU; value: uint8): void = 
   # Executes add on the A Register
-  cpu.setFlagN(false)
   cpu.a = cpu.doAdd(cpu.a, value, false)
   cpu.setFlagZ(0 == cpu.a)
-
+  cpu.setFlagN(false)
+  
 proc opAdc(cpu: var CPU; value: uint8): void = 
   # Executes add on the A Register + Carry if set
-  cpu.setFlagN(false)
   cpu.a = cpu.doAdd(cpu.a, value, true)
   cpu.setFlagZ(0 == cpu.a)
+  cpu.setFlagN(false)
 
 proc doSub(cpu: var CPU, value1: uint8, value2: uint8, throughCarry: bool):uint8 =
   var ones = not(value2)
@@ -177,21 +177,21 @@ proc doSub(cpu: var CPU, value1: uint8, value2: uint8, throughCarry: bool):uint8
 
 proc opSub(cpu: var CPU; value: uint8): void = 
   # Executes substraction on the A Register
-  cpu.setFlagN(true)
   cpu.a = cpu.doSub(cpu.a, value, false)
   cpu.setFlagZ(0 == cpu.a)
+  cpu.setFlagN(true)
 
 proc opSbc(cpu: var CPU; value: uint8): void = 
   # Executes substraction on the A Register - Carry Flag
-  cpu.setFlagN(true)
   cpu.a = cpu.doSub(cpu.a, value, true)
   cpu.setFlagZ(0 == cpu.a)
+  cpu.setFlagN(true)
 
 proc opCp(cpu: var CPU; value: uint8): void = 
   # Compares A to value, this is essentially subtract with ignored results
-  cpu.setFlagN(true)
   let tmpA = cpu.doSub(cpu.a, value, false)
   cpu.setFlagZ(0 == tmpA)
+  cpu.setFlagN(true)
 
 proc doRollRight(cpu: var CPU; value: uint8, throughCarry: bool): uint8 =
   var newValue: uint8 = value
