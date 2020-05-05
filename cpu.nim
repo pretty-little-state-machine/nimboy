@@ -1945,7 +1945,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     cpu.pc += 1
     result.tClock = 4
     result.mClock = 1
-    result.debugStr = "INC B"
+    result.debugStr = "INC B " & $toHex(tmp)
   of 0x05:
     # Note that Carry is NOT set on this operation
     var oldcarry = cpu.cFlag()
@@ -1958,7 +1958,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     cpu.pc += 1
     result.tClock = 4
     result.mClock = 1
-    result.debugStr = "DEC B"
+    result.debugStr = "DEC B " & $toHex(tmp)
   of 0x06:
     let byte =  cpu.mem.gameboy.readByte(cpu.pc + 1)
     cpu.bc = setMsb(cpu.bc, byte)
@@ -2013,7 +2013,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     cpu.pc += 1
     result.tClock = 4
     result.mClock = 1
-    result.debugStr = "INC C"
+    result.debugStr = "INC C " & $toHex(tmp)
   of 0x0D:
     # Note that Carry is NOT set on this operation
     var oldcarry = cpu.cFlag()
@@ -2026,7 +2026,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     cpu.pc += 1
     result.tClock = 4
     result.mClock = 1
-    result.debugStr = "DEC C"
+    result.debugStr = "DEC C " & $toHex(tmp)
   of 0x0E:
     let byte = cpu.mem.gameboy.readByte(cpu.pc + 1)
     cpu.bc = setLsb(cpu.bc, byte)
@@ -2078,7 +2078,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     cpu.pc += 1
     result.tClock = 4
     result.mClock = 1
-    result.debugStr = "INC D"
+    result.debugStr = "INC D " & $toHex(tmp)
   of 0x15:
     # Note that Carry is NOT set on this operation
     var oldcarry = cpu.cFlag()
@@ -2091,7 +2091,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     cpu.pc += 1
     result.tClock = 4
     result.mClock = 1
-    result.debugStr = "DEC D"
+    result.debugStr = "DEC D " & $toHex(tmp)
   of 0x16:
     let byte =  cpu.mem.gameboy.readByte(cpu.pc + 1)
     cpu.de = setMsb(cpu.de, byte)
@@ -2146,7 +2146,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     cpu.pc += 1
     result.tClock = 4
     result.mClock = 1
-    result.debugStr = "INC E"
+    result.debugStr = "INC E " & $toHex(tmp)
   of 0x1D:
     # Note that Carry is NOT set on this operation
     var oldcarry = cpu.cFlag()
@@ -2159,7 +2159,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     cpu.pc += 1
     result.tClock = 4
     result.mClock = 1
-    result.debugStr = "DEC E"
+    result.debugStr = "DEC E " & $toHex(tmp)
   of 0x1E:
     let byte = cpu.mem.gameboy.readByte(cpu.pc + 1)
     cpu.de = setLsb(cpu.de, byte)
@@ -2218,7 +2218,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     cpu.pc += 1
     result.tClock = 4
     result.mClock = 1
-    result.debugStr = "INC H"
+    result.debugStr = "INC H " & $toHex(tmp)
   of 0x25:
     # Note that Carry is NOT set on this operation
     var oldcarry = cpu.cFlag()
@@ -2231,7 +2231,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     cpu.pc += 1
     result.tClock = 4
     result.mClock = 1
-    result.debugStr = "DEC H"
+    result.debugStr = "DEC H " & $toHex(tmp)
   of 0x26:
     let byte =  cpu.mem.gameboy.readByte(cpu.pc + 1)
     cpu.hl = setMsb(cpu.hl, byte)
@@ -2312,7 +2312,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     cpu.pc += 1
     result.tClock = 4
     result.mClock = 1
-    result.debugStr = "INC L"
+    result.debugStr = "INC L " & $toHex(tmp)
   of 0x2D:
     # Note that Carry is NOT set on this operation
     var oldcarry = cpu.cFlag()
@@ -2325,7 +2325,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     cpu.pc += 1
     result.tClock = 4
     result.mClock = 1
-    result.debugStr = "DEC L"
+    result.debugStr = "DEC L " & $toHex(tmp)
   of 0x2E:
     let byte = cpu.mem.gameboy.readByte(cpu.pc + 1)
     cpu.hl = setLsb(cpu.hl, byte)
@@ -2457,7 +2457,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     cpu.pc += 1
     result.tClock = 4
     result.mClock = 1
-    result.debugStr = "INC A"
+    result.debugStr = "INC A " & $toHex(tmp)
   of 0x3D:
     # Note that Carry is NOT set on this operation
     var oldcarry = cpu.cFlag()
@@ -2470,7 +2470,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     cpu.pc += 1
     result.tClock = 4
     result.mClock = 1
-    result.debugStr = "DEC A"
+    result.debugStr = "DEC A " & $toHex(tmp)
   of 0x3E:
     cpu.a = cpu.mem.gameboy.readbyte(cpu.pc + 1)
     cpu.pc += 2
