@@ -51,16 +51,18 @@ proc main =
   #gb.ppu.fillTestTiles()
   while running:
     while pollEvent(evt):
+      echo repr(evt.kind)
       case evt.kind:
       of QuitEvent:
-        game.inputs[Input.quit] = true
+        quit("")
       of KeyDown:
         let input = evt.key.keysym.scancode.toInput
-        game.inputs[input] = true
-        game.gameboy.joypad = input.toRegisterByte()
+        if Input.quit == input:
+          quit("")
+        game.gameboy.joypad = input.keyDown(game.gameboy.joypad)
       of KeyUp:
-        game.inputs[evt.key.keysym.scancode.toInput] = false
-        game.gameboy.joypad = toRegisterByte(Input.none)
+        let input = evt.key.keysym.scancode.toInput
+        game.gameboy.joypad = input.keyUp(game.gameboy.joypad)
       else:
         discard
 
@@ -82,9 +84,9 @@ proc main =
       #echo str
       quit("")
     else:
-      #discard
-      echo str
-    #debug(game.gameboy, debugger)
+      discard
+      #echo str
+    debug(game.gameboy, debugger)
     limitFrameRate()
 main()
 #testSound()
