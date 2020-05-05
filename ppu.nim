@@ -138,8 +138,9 @@ proc tickPixelTransfer(ppu: var PPU): void =
       # Determine which entry wins and replace values in FIFO
       # Decode Palette
       #break
-    # Push Pixel to LCD Display
-    ppu.outputBuffer[(ppu.ly * 144) + ppu.lx] = ppu.fifo.popFirst()
+    # Push Pixel to LCD Display - This MUST be 32 bit integer!
+    let offset = (ppu.ly.uint32 * 160) + ppu.lx.uint32
+    ppu.outputBuffer[offset] = ppu.fifo.popFirst()
     ppu.lx += 1
 
   # Only run the fetcher every other tick.
