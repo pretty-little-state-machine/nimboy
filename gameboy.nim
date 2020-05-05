@@ -11,6 +11,7 @@ proc powerOn(gameboy:var Gameboy) =
     gameboy.timer.gb = newTimerGb(gameboy)
     gameboy.ppu.gb = newPPUGb(gameboy)
     gameboy.gameboyMode = mgb
+    gameboy.message = ""
     # CPU Initialization
     gameboy.cpu.a = 0x01'u8
     gameboy.cpu.f = 0xb0'u8    # Flags only
@@ -18,8 +19,7 @@ proc powerOn(gameboy:var Gameboy) =
     gameboy.cpu.de = 0x00d8'u16
     gameboy.cpu.hl = 0x014d'u16
     gameboy.cpu.sp = 0xfffe'u16
-    #gameboy.cpu.pc = 0x0100'u16 # Cheating to avoid bootloader
-    gameboy.cpu.pc = 0x0000'u16 
+    gameboy.cpu.pc = 0x0100'u16 # Cheating to avoid bootloader
     gameboy.cpu.ime = false     # CPU always must boot with interrupts disabled
     # Timer Initilzation
     gameboy.timer.timaCounter = 0x00'u8

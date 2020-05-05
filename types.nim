@@ -17,6 +17,7 @@ type
     intFlag*: uint8     # Interrupt Flags - 0xFF0F
     intEnable*: uint8   # Interrupt Enable Register - 0xFFFF
     stopped*: bool       # STOP command affects other modules from CPU
+    message*: string
 
   GameboyMode* = enum
     mgb, # Monochrome Gameboy - Original
