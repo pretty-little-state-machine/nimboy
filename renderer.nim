@@ -82,7 +82,8 @@ proc fillTestTiles*(ppu: var PPU): void =
 
 proc drawPixelEntry(renderer: RendererPtr; ppu: PPU; x: cint; y: cint): void = 
   # Draws a pixel with the appropriate color palette to the screen.
-  let pfe = ppu.outputBuffer[144 * y + x]
+  let offset = (y * 160) + x
+  let pfe = ppu.outputBuffer[offset]
   var palette: Palette
   case pfe.entity:
   of ftBackground:
@@ -100,8 +101,8 @@ proc drawPixelEntry(renderer: RendererPtr; ppu: PPU; x: cint; y: cint): void =
 
 proc step*(renderer: RendererPtr; ppu: PPU): void =
   # Processes a step in the "real" gameboy.
-  for y in countup(1, 144):
-    for x in countup(1, 160):
+  for y in countup(0, 143):
+    for x in countup(0, 159):
       renderer.drawPixelEntry(ppu, cint(x), cint(y))
 
 proc renderTileMap*(renderer: RendererPtr; ppu: PPU): void =
