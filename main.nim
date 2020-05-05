@@ -84,8 +84,8 @@ proc main =
       #echo str
       quit("")
     else:
-      # discard
-      echo str
+      discard
+      # echo str
     # debug(game.gameboy, debugger)
     limitFrameRate()
 main()
