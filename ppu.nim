@@ -18,6 +18,7 @@ import system
 import bitops
 import deques
 import types
+import interrupts
 
 proc newPPUGb*(gameboy: Gameboy): PPUGb =
   PPUGb(gameboy: gameboy)
@@ -181,8 +182,10 @@ proc tick*(ppu: var PPU) =
     ppu.clock = 0
     for x in ppu.oamBuffer.data.mitems: x = 0 # Flush OAM Buffer
     ppu.mode = oamSearch
+    #ppu.vBlankPrimed = true
   
   if oamSearch == ppu.mode:
+    ppu.vBlankPrimed = true
     ppu.tickOamSearch()
   
   if pixelTransfer == ppu.mode:
@@ -197,6 +200,12 @@ proc tick*(ppu: var PPU) =
   # Override OAM Search if we hit VBlank
   if (144 == ppu.ly):
     ppu.mode = vBlank
+
+  # Update vBlank interrupt and set primed to false so it doesn't keep
+  # triggering continually during vBlank
+  if vBlank == ppu.mode and ppu.vBlankPrimed:
+    ppu.gb.gameboy.triggerVSyncInterrupt()
+    ppu.vBlankPrimed = false
 
   # LY keeps counting up every 114 clocks during vBlank (up to 153)
   if vBlank == ppu.mode and 0 == ppu.clock mod 114:

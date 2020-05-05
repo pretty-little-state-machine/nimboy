@@ -17,7 +17,6 @@ type
     intFlag*: uint8     # Interrupt Flags - 0xFF0F
     intEnable*: uint8   # Interrupt Enable Register - 0xFFFF
     stopped*: bool       # STOP command affects other modules from CPU
-    vBlankPrimed*: bool # Used to one-shot fire vBlank interrupt when mode flips
 
   GameboyMode* = enum
     mgb, # Monochrome Gameboy - Original
@@ -112,6 +111,7 @@ type
     fetch*: Fetch     # OAM Data and sprite data fetcher - Populates the FIFO
     fifo*: Deque[PixelFIFOEntry]  # Internals used for pixel rendering
     lx*: uint8        # Internal lx state
+    vBlankPrimed*: bool # Used to one-shot fire vBlank interrupt when mode flips
 
   PPUGb* = ref object
     gameboy*: Gameboy

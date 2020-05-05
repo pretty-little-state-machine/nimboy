@@ -4,6 +4,7 @@ import types
 # See here for an amazing resource https://gbdev.io/gb-opcodes/optables/
 import memory
 import nimboyutils
+import interrupts
 
 type
   TickResult* = object
@@ -3772,6 +3773,7 @@ proc handleInterrupts(cpu: var CPU): TickResult =
     return cpu.callInterrupt(0x0058, 3)
   if cpu.mem.gameboy.testJoypadInterrupt() and cpu.mem.gameboy.testJoypadIntEnabled():
     return cpu.callInterrupt(0x0060, 4)
+  
 
 proc step*(cpu: var CPU): TickResult =   
   # Executes a single step for the CPU.
@@ -3803,3 +3805,4 @@ proc step*(cpu: var CPU): TickResult =
 proc addBreakpoint*(cpu: var CPU; breakpoint: uint16) =
   # Addres a breakpoint to the CPU. This will NOT be cleared when hit.
   cpu.breakpoint = breakpoint
+
