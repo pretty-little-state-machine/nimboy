@@ -166,7 +166,6 @@ proc hBlankUpdates(ppu: var PPU): void =
   ppu.wy = ppu.requestedWy
   ppu.wx = ppu.requestedWx
 
-
 proc isRefreshed(ppu: PPU): bool =
   17556 == ppu.clock
 
@@ -219,3 +218,5 @@ proc writeByte*(ppu: var PPU; address: uint16; value: uint8): void =
     ppu.vRAMBgMap1[address - 0x9800] = value
   elif address < 0xA000:
     ppu.vRAMBgMap2[address - 0x9C00] = value
+
+

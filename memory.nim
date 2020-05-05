@@ -5,6 +5,19 @@ import ppu
 
 export types.CPUMemory
 
+# Headers so DMA can work on them.
+proc readByte*(gameboy: Gameboy, address: uint16): uint8;
+proc writeByte*(gameboy: Gameboy; address: uint16; value: uint8);
+
+proc dmaTransfer(gameboy:Gameboy): void =
+  # Moves a block of RAM / ROM to Video OAM (0xFE00-0xFE9F)
+  # The starting addressing is the value of the 0xFF46 register divided by / 0x100
+  #
+  # TODO: This does NOT wait for 160 cycles to finish at this time
+  let startingAddress = (gameboy.readbyte(0xFF46'u16)) div 0x100'u16
+  for address in countup(0'u16, 0x9F):
+    gameboy.writeByte(0xFE00'u16 + address, gameboy.readByte(startingAddress))
+
 proc readByte*(gameboy: Gameboy, address: uint16): uint8 =
   if address < 0x8000:
     return gameboy.cartridge.readByte(address)
@@ -102,6 +115,7 @@ proc writeByte*(gameboy: Gameboy; address: uint16; value: uint8): void =
     gameboy.ppu.requestedLyc = value
   if 0xFF46 == address:
     gameboy.ppu.dma = value
+    gameboy.dmaTransfer()   # Dispatch the transfer
   if 0xFF47 == address:
     gameboy.ppu.bgp = value
   if 0xFF48 == address:
@@ -227,3 +241,5 @@ proc clearJoypadInterrupt*(gameboy: var Gameboy): void =
   var ie = gameboy.readByte(0xFF0F)
   ie.clearBit(4)
   gameboy.writeByte(0xFF0F, ie)
+
+

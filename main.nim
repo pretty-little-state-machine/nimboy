@@ -29,7 +29,7 @@ proc main =
   gb.cartridge.loadRomFile("roms/tetris.gb")
   tileMapRenderer.clear()
   #sleep (3000)
-  gb.ppu.fillTestTiles()
+  #gb.ppu.fillTestTiles()
   while running:
     while pollEvent(evt):
       if evt.kind == QuitEvent:
@@ -49,12 +49,13 @@ proc main =
       refresh = true
 
     let str = gb.step().debugStr
-    if str.contains("UNKNOWN OPCODE") or 
-      str.contains("BREAK!"):
-      echo str
+    if str.contains("UNKNOWN OPCODE"): #or 
+      #str.contains("BREAK!"):
+      #echo str
       quit("")
     else:
+      #discard
       echo str
-    # debug(gb, debugger)
+    debug(gb, debugger)
     limitFrameRate()
 main()
