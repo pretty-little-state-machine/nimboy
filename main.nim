@@ -9,6 +9,7 @@ import strutils
 import renderer
 import types
 import joypad
+import apu
 
 const tileDebuggerScale:cint = 1 # Output Scaling
 
@@ -86,3 +87,4 @@ proc main =
     #debug(game.gameboy, debugger)
     limitFrameRate()
 main()
+#testSound()
