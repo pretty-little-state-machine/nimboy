@@ -45,7 +45,9 @@ proc main =
     running: bool = true
 
   # Preload tetris
-  game.gameboy.cartridge.loadRomFile("roms/tetris.gb")
+  # gb.cartridge.loadRomFile("roms/tetris.gb")
+  gb.cartridge.loadRomFile("roms/cpu_instrs.gb")
+  # gb.cartridge.loadRomFile("roms/instr_timing.gb")
   
   #sleep (3000)
   #gb.ppu.fillTestTiles()
