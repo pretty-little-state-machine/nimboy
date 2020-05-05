@@ -38,6 +38,7 @@ proc powerOn(gameboy:var Gameboy) =
     gameboy.ppu.wx = 0x00'u8
     gameboy.ppu.wy = 0x00'u8
     gameboy.ppu.mode = oamSearch
+    gameboy.vBlankPrimed = true # Used to one-shot fire VLBANK when mode shifts
     # A real gameboy has noise in the ram on boot
     randomize()
     for x in gameboy.ppu.vRAMTileDataBank0.mitems: x = uint8(rand(1))
@@ -54,3 +55,11 @@ proc step*(gameboy: var Gameboy): TickResult =
     for t in countup(1, result.tClock):
       gameboy.timer.tick()
       gameboy.ppu.tick()
+    # Update vBlank interrupt and set primed to false so it doesn't keep
+    # triggering continually during vBlank
+    if PPUMode.vBlank == gameboy.ppu.mode and gameboy.vBlankPrimed:
+      gameboy.triggerVSyncInterrupt()
+      gameboy.vBlankPrimed = false
+    # vBlank ended, prime for next interrupt fire
+    if PPUMode.vBlank != gameboy.ppu.mode:
+      gameboy.vBlankPrimed = true
