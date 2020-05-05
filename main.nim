@@ -45,12 +45,12 @@ proc main =
     running: bool = true
 
   # Preload tetris
-  # gb.cartridge.loadRomFile("roms/tetris.gb")
-  gb.cartridge.loadRomFile("roms/cpu_instrs.gb")
-  # gb.cartridge.loadRomFile("roms/instr_timing.gb")
+  # game.gameboy.cartridge.loadRomFile("roms/tetris.gb")
+  game.gameboy.cartridge.loadRomFile("roms/cpu_instrs.gb")
+  # game.gameboy.cartridge.loadRomFile("roms/instr_timing.gb")
   
   #sleep (3000)
-  #gb.ppu.fillTestTiles()
+  # game.gameboy.ppu.fillTestTiles()
   while running:
     while pollEvent(evt):
       case evt.kind:
@@ -84,9 +84,9 @@ proc main =
       #echo str
       quit("")
     else:
-      #discard
+      # discard
       echo str
-    #debug(game.gameboy, debugger)
+    # debug(game.gameboy, debugger)
     limitFrameRate()
 main()
 #testSound()
