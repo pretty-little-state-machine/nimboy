@@ -125,7 +125,9 @@ type
     clock*: uint32 # Internal OAM Buffer Clock - Counts up to 40 ticks then resets
 
   Fetch* = object
-    tmpTileNum*: uint8     # Tmp placeholder for what tile will be read
+    tmpTileNum*: uint16    # Tmp placeholder for what tile will be read
+    tmpTileOffsetX*: uint8  # The current tile that should be read
+    tmpTileOffsetY*: uint8 # The current tile that should be read
     tmpByte0*: uint8       # Tmp placeholder for first byte read 
     result*: array[8, PixelFIFOEntry] # Block of data destined for the FIFO queue
     mode*: fModeState      # Mode of the fetcher
@@ -134,7 +136,7 @@ type
     idle*: bool            # The Fetcher goes idle when the data is waiting to be put into FIFO
     
   fModeState* = enum
-    fmsReadTile, fmsReadData0, fmsReadData1
+    fmsReadTile, fmsReadData0, fmsReadData1, fmsIdle
 
   FetchEntity* = enum
     ftBackground, ftWindow, ftSprite0, ftSprite1 # Used to determine the pixel mixing

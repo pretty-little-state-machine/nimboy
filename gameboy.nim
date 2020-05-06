@@ -39,6 +39,7 @@ proc powerOn(gameboy:var Gameboy) =
     gameboy.ppu.wy = 0x00'u8
     gameboy.ppu.mode = oamSearch
     gameboy.ppu.vBlankPrimed = true # Used to one-shot fire VLBANK when mode shifts
+    gameboy.ppu.fetch.canRun = true
     # A real gameboy has noise in the ram on boot
     randomize()
     for x in gameboy.ppu.vRAMTileDataBank0.mitems: x = uint8(rand(1))

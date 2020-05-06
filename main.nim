@@ -1,11 +1,11 @@
 import sdl2
+import times
+import os
+import strutils
 # Nimboy imports
 import debugger
 import gameboy
 import cartridge
-import sdl2
-import os
-import strutils
 import renderer
 import types
 import joypad
@@ -43,6 +43,7 @@ proc main =
     debugger = newDebugger()
     refresh: bool
     running: bool = true
+    vSyncTime: float
 
   # Preload tetris
   game.gameboy.cartridge.loadRomFile("roms/tetris.gb")
@@ -73,6 +74,8 @@ proc main =
       tileMapRenderer.renderTilemap(game.gameboy.ppu)
       tileMapRenderer.present()
       game.render()
+      #echo "vBlank: ", (cpuTime() - vSyncTime) * 1000
+      vSyncTime = cpuTime()
 
     # Set next OAM to fire off a redraw
     if vBlank == game.gameboy.ppu.mode:
@@ -85,8 +88,8 @@ proc main =
       quit("")
     else:
       discard
-      echo str
+     # echo str
     #debug(game.gameboy, debugger)
-    limitFrameRate()
+    #limitFrameRate()
 main()
 #testSound()

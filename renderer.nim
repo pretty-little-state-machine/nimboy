@@ -48,8 +48,8 @@ proc decodeMgbColor(colorNumber: uint8): PpuColor =
   # color palette values are rendered in red.
   case colorNumber:
   of 0x00: result.r = 232'u8; result.g = 242'u8; result.b = 223'u8
-  of 0x01: result.r = 174'u8; result.g = 194'u8; result.b = 157'u8
-  of 0x02: result.r =  98'u8; result.g = 110'u8; result.b = 89'u8
+  of 0x01: result.r =  98'u8; result.g = 110'u8; result.b = 89'u8
+  of 0x02: result.r = 174'u8; result.g = 194'u8; result.b = 157'u8
   of 0x03: result.r =  30'u8; result.g =  33'u8; result.b = 27'u8
   else: result.r = 255'u8; result.g = 0'u8; result.b = 0'u8
 
@@ -112,7 +112,7 @@ proc renderTileMap*(renderer: RendererPtr; ppu: PPU): void =
     yOffset = 0
   for sprite in countup(0, 383):
     for row in countup(0, 7):
-      let 
+      let
         lByte = ppu.vRAMTileDataBank0[(sprite * 16) + int(row * 2) + 0]
         hByte = ppu.vRAMTileDataBank0[(sprite * 16) + int(row * 2) + 1]
         tmp = decode2bbTileRow(lbyte, hByte)
