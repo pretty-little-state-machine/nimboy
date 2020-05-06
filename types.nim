@@ -112,6 +112,7 @@ type
     fetch*: Fetch     # OAM Data and sprite data fetcher - Populates the FIFO
     fifo*: Deque[PixelFIFOEntry]  # Internals used for pixel rendering
     lx*: uint8        # Internal lx state
+    vBlankPrimed*: bool # Used to one-shot fire vBlank interrupt when mode flips
 
   PPUGb* = ref object
     gameboy*: Gameboy

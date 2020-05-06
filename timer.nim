@@ -1,6 +1,6 @@
 import bitops
 import types
-import memory
+import interrupts
 
 proc timaEnabled(timer: Timer): bool =
   return testBit(timer.timaCounter, 2)

@@ -4,6 +4,7 @@ import types
 # See here for an amazing resource https://gbdev.io/gb-opcodes/optables/
 import memory
 import nimboyutils
+import interrupts
 
 type
   TickResult* = object
@@ -3772,16 +3773,15 @@ proc handleInterrupts(cpu: var CPU): TickResult =
   # previous interrupt has set IE (or typically the RETI opcode - Return and Enable Interrupts)
   if cpu.mem.gameboy.testVsyncInterrupt() and cpu.mem.gameboy.testVsyncIntEnabled():
     return cpu.callInterrupt(0x0040, 0)
-  elif cpu.mem.gameboy.testLCDStatInterrupt() and cpu.mem.gameboy.testLCDStatIntEnabled():
+  if cpu.mem.gameboy.testLCDStatInterrupt() and cpu.mem.gameboy.testLCDStatIntEnabled():
     return cpu.callInterrupt(0x0048, 1)
-  elif cpu.mem.gameboy.testTimerInterrupt() and cpu.mem.gameboy.testTimerIntEnabled():
+  if cpu.mem.gameboy.testTimerInterrupt() and cpu.mem.gameboy.testTimerIntEnabled():
     return cpu.callInterrupt(0x0050, 2)
-  elif cpu.mem.gameboy.testSerialInterrupt() and cpu.mem.gameboy.testSerialIntEnabled():
+  if cpu.mem.gameboy.testSerialInterrupt() and cpu.mem.gameboy.testSerialIntEnabled():
     return cpu.callInterrupt(0x0058, 3)
-  elif cpu.mem.gameboy.testJoypadInterrupt() and cpu.mem.gameboy.testJoypadIntEnabled():
+  if cpu.mem.gameboy.testJoypadInterrupt() and cpu.mem.gameboy.testJoypadIntEnabled():
     return cpu.callInterrupt(0x0060, 4)
-  else:
-    discard
+  
 
 proc step*(cpu: var CPU): TickResult =   
   # Executes a single step for the CPU.
@@ -3813,3 +3813,4 @@ proc step*(cpu: var CPU): TickResult =
 proc addBreakpoint*(cpu: var CPU; breakpoint: uint16) =
   # Addres a breakpoint to the CPU. This will NOT be cleared when hit.
   cpu.breakpoint = breakpoint
+
