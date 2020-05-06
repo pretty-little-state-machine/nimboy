@@ -1915,8 +1915,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.debugStr = "NOP"
   of 0x01:
     let word = cpu.readWord(cpu.pc + 1) # Decode only
-    cpu.bc = setLsb(cpu.bc, cpu.mem.gameboy.readByte(cpu.pc + 1))
-    cpu.bc = setMsb(cpu.bc, cpu.mem.gameboy.readByte(cpu.pc + 2))
+    cpu.bc = word
     cpu.pc += 3
     result.tClock = 12
     result.mClock = 3
@@ -2050,8 +2049,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.debugStr = "STOP"
   of 0x11:
     let word = cpu.readWord(cpu.pc + 1) # Decode only
-    cpu.de = setLsb(cpu.de, cpu.mem.gameboy.readByte(cpu.pc + 1))
-    cpu.de = setMsb(cpu.de, cpu.mem.gameboy.readByte(cpu.pc + 2))
+    cpu.de = word
     cpu.pc += 3
     result.tClock = 12
     result.mClock = 3
@@ -2191,8 +2189,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
       result.debugStr = "JR NZ " & $toHex(cpu.pc)
   of 0x21:
     let word = cpu.readWord(cpu.pc + 1) # Decode only
-    cpu.hl = setLsb(cpu.hl, cpu.mem.gameboy.readByte(cpu.pc + 1))
-    cpu.hl = setMsb(cpu.hl, cpu.mem.gameboy.readByte(cpu.pc + 2))
+    cpu.hl = word
     cpu.pc += 3
     result.tClock = 12
     result.mClock = 3
@@ -2358,12 +2355,12 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
       result.mClock = 3
       result.debugStr = "JR NC " & $toHex(cpu.pc)
   of 0x31:
-    cpu.sp = setLsb(cpu.sp, cpu.mem.gameboy.readByte(cpu.pc + 1))
-    cpu.sp = setMsb(cpu.sp, cpu.mem.gameboy.readByte(cpu.pc + 2))
+    let word = cpu.readWord(cpu.pc + 1) # Decode only
+    cpu.sp = word
     cpu.pc += 3
     result.tClock = 12
     result.mClock = 3
-    result.debugStr = "LD SP (" & $toHex(cpu.sp) & ")"
+    result.debugStr = "LD SP (" & $toHex(word) & ")"
   of 0x32:
     cpu.mem.gameboy.writeByte(cpu.hl, cpu.a)
     cpu.hl -= 1
