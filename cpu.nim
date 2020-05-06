@@ -3624,7 +3624,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 3
     result.debugStr = "LD A " & $toHex(word) & " (" & $toHex(cpu.a) & ")"
   of 0XF1:
-    cpu.f = cpu.popByte()
+    cpu.f = bitand(cpu.popByte(), 0xF0)
     cpu.a = cpu.popByte()
     cpu.pc += 1
     result.tClock = 12
