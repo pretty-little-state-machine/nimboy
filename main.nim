@@ -52,7 +52,6 @@ proc main =
   #gb.ppu.fillTestTiles()
   while running:
     while pollEvent(evt):
-      echo repr(evt.kind)
       case evt.kind:
       of QuitEvent:
         quit("")

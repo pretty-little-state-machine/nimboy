@@ -16,7 +16,6 @@
 #
 import math
 import system
-import strutils
 import bitops
 import deques
 import types
@@ -111,11 +110,6 @@ proc tickFetch(ppu: var PPU; row: uint8): void =
   # TODO: Background scrolling support
   case ppu.fetch.mode
   of fmsReadTile:
-   # let 
-   #   x = floorDiv(ppu.lx, 8)
-   #   y = floorDiv(ppu.ly, 8)
-   #   offset = (y * 32) + x 
-   # echo "READ TILE - " & $offset & " : " & $x & " , " & $y
     let offset:uint = floorDiv(ppu.fetch.tmpTileOffsetY, 8).uint * 32 + ppu.fetch.tmpTileoffsetX.uint
     if (ppu.lcdc.testBit(3)):
       ppu.fetch.tmpTileNum = ppu.vRAMBgMap2[offset]
