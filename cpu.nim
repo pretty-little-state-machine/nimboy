@@ -2481,7 +2481,12 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 2
     result.debugStr = "LD A " & $toHex(cpu.a)
   of 0x3F:
-    cpu.setFlagC(false)
+    if cpu.cFlag:
+      cpu.setFlagC(false)
+    else:
+      cpu.setFlagC(true)
+    cpu.setFlagN(false)
+    cpu.setFlagH(false)
     cpu.pc += 1
     result.tClock = 4
     result.mClock = 1
