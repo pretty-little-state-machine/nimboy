@@ -14,6 +14,7 @@
 # See the PixelFIFOEntry type defintion to see what goes to the SDL rendering 
 # (or whatever else) that is used.
 #
+import math
 import system
 import bitops
 import deques
@@ -23,14 +24,12 @@ import interrupts
 proc newPPUGb*(gameboy: Gameboy): PPUGb =
   PPUGb(gameboy: gameboy)
 
-template toSigned(x: uint8): int8 = cast[int8](x)
+template toSigned(x: uint16): int16 = cast[int16](x)
 
-proc getWindowTileNibble(ppu: PPU; tileNumber: uint8; row: uint8; byte: uint8): uint8 =
+proc getWindowTileNibble(ppu: PPU; tileNumber: uint16; row: uint8; byte: uint8): uint8 =
   # Returns the specific 2bb encoded byte of a sprite (4 dots)
   # This automatically determines the map and offset based 
   # on the LCDC settings
-  var memOffset = 0 # 0x8000 in mapped memory
-  if testBit(ppu.lcdc, 6): memOffset = 0x1000 #0x9000 in mapped memory
   
   # The tile number can either be calculated via signed or unsigned
   var tmpTileNum: int
@@ -38,8 +37,10 @@ proc getWindowTileNibble(ppu: PPU; tileNumber: uint8; row: uint8; byte: uint8): 
     tmpTileNum = toSigned(tileNumber)
   else:
     tmpTileNum = int(tileNumber)
+  let address = (tmpTileNum * 16) + int(row * 2) + int(byte)
+  #echo $tmpTileNum & ":" & $toHex(address) & ":" & $row & ":" & $byte
   # Load in the result data  TODO: This might need multiplcate on tilenumber by 16?
-  result = ppu.vRAMTileDataBank0[memOffset + tmpTileNum + int(row * 2) + int(byte)]
+  result = ppu.vRAMTileDataBank0[address]
 
 proc decode2bbTileRow*(lByte: uint8; hByte: uint8): array[8, uint8] =
   # Decodes a sprite row encoded with the 2BB format
@@ -106,31 +107,40 @@ proc resetFetch(fetch: var Fetch): void =
 
 proc tickFetch(ppu: var PPU; row: uint8): void =
   # Executes a fetch operation.
+  # TODO: Background scrolling support
   case ppu.fetch.mode
   of fmsReadTile:
-    ppu.fetch.tmpTileNum = 0
+    let offset:uint = floorDiv(ppu.fetch.tmpTileOffsetY, 8).uint * 32 + ppu.fetch.tmpTileoffsetX.uint
+    if (ppu.lcdc.testBit(3)):
+      ppu.fetch.tmpTileNum = ppu.vRAMBgMap2[offset]
+    else:
+      ppu.fetch.tmpTileNum = ppu.vRAMBgMap1[offset]
     ppu.fetch.mode = fmsReadData0
   of fmsReadData0:
-    ppu.fetch.tmpByte0 = ppu.getWindowTileNibble(1, 1, 0)
+    ppu.fetch.tmpByte0 = ppu.getWindowTileNibble(ppu.fetch.tmpTileNum, row, 0)
     ppu.fetch.mode = fmsReadData1
   of fmsReadData1:
-    let byte1 = ppu.getWindowTileNibble(1, 1, 1)
+    let byte1 = ppu.getWindowTileNibble(ppu.fetch.tmpTileNum, row, 1)
     let tmpData = decode2bbTileRow(ppu.fetch.tmpByte0, byte1)
     # Build up the 7 PixelFIFOEntry objects from the decoding
     for x in countup(0, 7):
-      ppu.fetch.result[x].data = tmpData[x]
+      ppu.fetch.result[x].data = tmpData[x] 
       ppu.fetch.result[x].entity = ppu.fetch.entity
-    ppu.fetch.idle = true # Data is now ready
+      ppu.fetch.mode = fmsIdle
+    # Move the tile data up
+    ppu.fetch.tmpTileOffsetX += 1
+  of fmsIdle:
+    discard
 
 proc pixelTransferComplete(ppu: var PPU): void =
     ppu.ly += 1
     ppu.mode = hBlank
     ppu.lx = 0
     ppu.fifo.clear()
+    ppu.fetch.tmpTileOffsetX = 0
 
 proc tickPixelTransfer(ppu: var PPU): void = 
   # Handles the Pixel Transfer mode of the PPU
-
   # TODO Add sprite detection
   if ppu.fifo.len > 8:
     # Mix Pixels - Up to 10 cycles based on OAM Buffer
@@ -138,27 +148,29 @@ proc tickPixelTransfer(ppu: var PPU): void =
       # Determine which entry wins and replace values in FIFO
       # Decode Palette
       #break
-    # Push Pixel to LCD Display
-    ppu.outputBuffer[(ppu.ly * 144) + ppu.lx] = ppu.fifo.popFirst()
+    # Push Pixel to LCD Display - This MUST be 32 bit integer!
+    let offset = (ppu.ly.uint32 * 160) + ppu.lx.uint32
+    ppu.outputBuffer[offset] = ppu.fifo.popFirst()
     ppu.lx += 1
 
   # Only run the fetcher every other tick.
   if false == ppu.fetch.canRun:
     ppu.fetch.canRun = true
   else:
-    ppu.tickFetch(ppu.ly div 8)
+    ppu.tickFetch(ppu.ly mod 8)
     ppu.fetch.canRun = false
 
   # Pull the data out of the fetch when FIFO has room
-  if true == ppu.fetch.idle and ppu.fifo.len() <= 8:
+  if fmsIdle == ppu.fetch.mode and ppu.fifo.len() <= 8:
     for x in countup(0x0, 0x7):
       ppu.fifo.addLast(ppu.fetch.result[x])
-    ppu.fetch.resetFetch() 
+    ppu.fetch.resetFetch()
 
   # Pixel transfer complete - Switch to HBlank
   if 160 == ppu.lx:
     ppu.pixelTransferComplete()
-
+    ppu.fetch.tmpTileOffsetY += 1
+ 
 proc hBlankUpdates(ppu: var PPU): void =
   # Writes in any requested memory settings for the PPU during the H-Blank
   ppu.scy = ppu.requestedScy
@@ -182,6 +194,8 @@ proc tick*(ppu: var PPU) =
     ppu.clock = 0
     for x in ppu.oamBuffer.data.mitems: x = 0 # Flush OAM Buffer
     ppu.mode = oamSearch
+    ppu.fetch.canRun = true
+    ppu.fetch.tmpTileOffsetY = 0
     #ppu.vBlankPrimed = true
   
   if oamSearch == ppu.mode:
@@ -200,6 +214,7 @@ proc tick*(ppu: var PPU) =
   # Override OAM Search if we hit VBlank
   if (144 == ppu.ly):
     ppu.mode = vBlank
+    #quit("")
 
   # Update vBlank interrupt and set primed to false so it doesn't keep
   # triggering continually during vBlank

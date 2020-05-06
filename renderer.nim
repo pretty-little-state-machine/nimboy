@@ -47,10 +47,10 @@ proc decodeMgbColor(colorNumber: uint8): PpuColor =
   # A nice set of psuedo-green colours for Monochrome Gameboy. Any invalid 
   # color palette values are rendered in red.
   case colorNumber:
-  of 0x03: result.r = 232'u8; result.g = 242'u8; result.b = 223'u8
-  of 0x02: result.r = 174'u8; result.g = 194'u8; result.b = 157'u8
+  of 0x00: result.r = 232'u8; result.g = 242'u8; result.b = 223'u8
   of 0x01: result.r =  98'u8; result.g = 110'u8; result.b = 89'u8
-  of 0x00: result.r =  30'u8; result.g =  33'u8; result.b = 27'u8
+  of 0x02: result.r = 174'u8; result.g = 194'u8; result.b = 157'u8
+  of 0x03: result.r =  30'u8; result.g =  33'u8; result.b = 27'u8
   else: result.r = 255'u8; result.g = 0'u8; result.b = 0'u8
 
 proc byteToMgbPalette(byte: uint8): Palette =
@@ -82,7 +82,8 @@ proc fillTestTiles*(ppu: var PPU): void =
 
 proc drawPixelEntry(renderer: RendererPtr; ppu: PPU; x: cint; y: cint): void = 
   # Draws a pixel with the appropriate color palette to the screen.
-  let pfe = ppu.outputBuffer[144 * y + x]
+  let offset = (y * 160) + x
+  let pfe = ppu.outputBuffer[offset]
   var palette: Palette
   case pfe.entity:
   of ftBackground:
@@ -100,8 +101,8 @@ proc drawPixelEntry(renderer: RendererPtr; ppu: PPU; x: cint; y: cint): void =
 
 proc step*(renderer: RendererPtr; ppu: PPU): void =
   # Processes a step in the "real" gameboy.
-  for y in countup(1, 144):
-    for x in countup(1, 160):
+  for y in countup(0, 143):
+    for x in countup(0, 159):
       renderer.drawPixelEntry(ppu, cint(x), cint(y))
 
 proc renderTileMap*(renderer: RendererPtr; ppu: PPU): void =
@@ -111,7 +112,7 @@ proc renderTileMap*(renderer: RendererPtr; ppu: PPU): void =
     yOffset = 0
   for sprite in countup(0, 383):
     for row in countup(0, 7):
-      let 
+      let
         lByte = ppu.vRAMTileDataBank0[(sprite * 16) + int(row * 2) + 0]
         hByte = ppu.vRAMTileDataBank0[(sprite * 16) + int(row * 2) + 1]
         tmp = decode2bbTileRow(lbyte, hByte)

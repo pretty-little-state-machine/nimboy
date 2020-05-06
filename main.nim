@@ -1,11 +1,11 @@
 import sdl2
+import times
+import os
+import strutils
 # Nimboy imports
 import debugger
 import gameboy
 import cartridge
-import sdl2
-import os
-import strutils
 import renderer
 import types
 import joypad
@@ -43,6 +43,7 @@ proc main =
     debugger = newDebugger()
     refresh: bool
     running: bool = true
+    vSyncTime: float
 
   # Preload tetris
   # game.gameboy.cartridge.loadRomFile("roms/tetris.gb")
@@ -54,17 +55,19 @@ proc main =
   # game.gameboy.cartridge.loadRomFile("roms/06-ld r,r.gb") 
   # game.gameboy.cartridge.loadRomFile("roms/07-jr,jp,call,ret,rst.gb")
   # game.gameboy.cartridge.loadRomFile("roms/08-misc instrs.gb")
-  # game.gameboy.cartridge.loadRomFile("roms/09-op r,r.gb")
   # game.gameboy.cartridge.loadRomFile("roms/10-bit ops.gb")
+  # game.gameboy.cartridge.loadRomFile("roms/09-op r,r.gb")
   # game.gameboy.cartridge.loadRomFile("roms/11-op a,(hl).gb")
   # game.gameboy.cartridge.loadRomFile("roms/cpu_instrs.gb")
   # game.gameboy.cartridge.loadRomFile("roms/instr_timing.gb")
   
+  # Blargg's CPU Roms
+  game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/cpu_instrs/individual/06-ld r,r.gb")
+
   #sleep (3000)
   # game.gameboy.ppu.fillTestTiles()
   while running:
     while pollEvent(evt):
-      echo repr(evt.kind)
       case evt.kind:
       of QuitEvent:
         quit("")
@@ -86,6 +89,8 @@ proc main =
       tileMapRenderer.renderTilemap(game.gameboy.ppu)
       tileMapRenderer.present()
       game.render()
+      #echo "vBlank: ", (cpuTime() - vSyncTime) * 1000
+      vSyncTime = cpuTime()
 
     # Set next OAM to fire off a redraw
     if vBlank == game.gameboy.ppu.mode:
@@ -94,12 +99,12 @@ proc main =
     let str = game.gameboy.step().debugStr
     if str.contains("UNKNOWN OPCODE"): #or 
       #str.contains("BREAK!"):
-      #echo str
+      echo str
       quit("")
     else:
-      discard
-      # echo str
-    # debug(game.gameboy, debugger)
-    limitFrameRate()
+      #discard
+      echo str
+    #debug(game.gameboy, debugger)
+    #limitFrameRate()
 main()
 #testSound()

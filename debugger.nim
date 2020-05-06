@@ -276,6 +276,8 @@ proc drawPpuMode(ppu: PPU) =
     stdout.write("Read Data 0")
   of fmsReadData1:
     stdout.write("Read Data 1")
+  of fmsIdle:
+    stdout.write("Idle")    
   setCursorPos(60,13)
   stdout.write("F.Idle: ")
   setCursorPos(70,13)
