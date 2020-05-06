@@ -122,13 +122,10 @@ proc tickFetch(ppu: var PPU; row: uint8): void =
     else:
       ppu.fetch.tmpTileNum = ppu.vRAMBgMap1[offset]
     ppu.fetch.mode = fmsReadData0
-    echo "READ TILE " & $offset
   of fmsReadData0:
-    echo "READ Byte 0"
     ppu.fetch.tmpByte0 = ppu.getWindowTileNibble(ppu.fetch.tmpTileNum, row, 0)
     ppu.fetch.mode = fmsReadData1
   of fmsReadData1:
-    echo "READ Byte 1"
     let byte1 = ppu.getWindowTileNibble(ppu.fetch.tmpTileNum, row, 1)
     let tmpData = decode2bbTileRow(ppu.fetch.tmpByte0, byte1)
     # Build up the 7 PixelFIFOEntry objects from the decoding
@@ -139,7 +136,7 @@ proc tickFetch(ppu: var PPU; row: uint8): void =
     # Move the tile data up
     ppu.fetch.tmpTileOffsetX += 1
   of fmsIdle:
-    echo "IDLE"
+    discard
 
 proc pixelTransferComplete(ppu: var PPU): void =
     ppu.ly += 1
@@ -161,14 +158,10 @@ proc tickPixelTransfer(ppu: var PPU): void =
     let offset = (ppu.ly.uint32 * 160) + ppu.lx.uint32
     ppu.outputBuffer[offset] = ppu.fifo.popFirst()
     ppu.lx += 1
-    stdout.write("FIFO: PUSH: " & $ppu.fifo.len & " ")
-  else:
-    stdout.write("FIFO: IDLE: " & $ppu.fifo.len & " ")
 
   # Only run the fetcher every other tick.
   if false == ppu.fetch.canRun:
     ppu.fetch.canRun = true
-    echo ""
   else:
     ppu.tickFetch(ppu.ly mod 8)
     ppu.fetch.canRun = false
@@ -183,7 +176,6 @@ proc tickPixelTransfer(ppu: var PPU): void =
   if 160 == ppu.lx:
     ppu.pixelTransferComplete()
     ppu.fetch.tmpTileOffsetY += 1
-    echo "------------------------------------"
  
 proc hBlankUpdates(ppu: var PPU): void =
   # Writes in any requested memory settings for the PPU during the H-Blank
