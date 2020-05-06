@@ -46,8 +46,11 @@ proc main =
     vSyncTime: float
 
   # Preload tetris
-  game.gameboy.cartridge.loadRomFile("roms/tetris.gb")
+  #game.gameboy.cartridge.loadRomFile("roms/tetris.gb")
   
+  # Blargg's CPU Roms
+  game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/cpu_instrs/individual/06-ld r,r.gb")
+
   #sleep (3000)
   #gb.ppu.fillTestTiles()
   while running:
@@ -83,11 +86,11 @@ proc main =
     let str = game.gameboy.step().debugStr
     if str.contains("UNKNOWN OPCODE"): #or 
       #str.contains("BREAK!"):
-      #echo str
+      echo str
       quit("")
     else:
-      discard
-     # echo str
+      #discard
+      echo str
     #debug(game.gameboy, debugger)
     #limitFrameRate()
 main()
