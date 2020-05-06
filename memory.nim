@@ -110,6 +110,8 @@ proc writeByte*(gameboy: Gameboy; address: uint16; value: uint8): void =
     let c = char(value)
     if value == 10:
       echo gameboy.message
+      # if gameboy.message == "Failed":
+        # quit()
       gameboy.message = ""
     else:
       gameboy.message &= c
