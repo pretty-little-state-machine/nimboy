@@ -1969,6 +1969,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
   of 0x07:
     cpu.a = cpu.doRollLeft(cpu.a, true)
     cpu.pc += 1
+    cpu.setFlagZ(false)
     result.tClock = 4
     result.mClock = 1
     result.debugStr = "RLC A"
@@ -2036,6 +2037,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.debugStr = "LD C " & $toHex(byte)
   of 0x0F:
     cpu.a = cpu.doRollRight(cpu.a, true)
+    cpu.setFlagZ(false)
     cpu.pc += 1
     result.tClock = 4
     result.mClock = 1
@@ -2102,6 +2104,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
   of 0x17:
     cpu.a = cpu.doRollLeft(cpu.a, false)
     cpu.pc += 1
+    cpu.setFlagZ(false)
     result.tClock = 4
     result.mClock = 1
     result.debugStr = "RL A"
@@ -2169,6 +2172,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.debugStr = "LD E " & $toHex(byte)
   of 0x1F:
     cpu.a = cpu.doRollRight(cpu.a, false)
+    cpu.setFlagZ(false)
     cpu.pc += 1
     result.tClock = 4
     result.mClock = 1
@@ -2336,6 +2340,8 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
   of 0x2F:
     cpu.a = not cpu.a
     cpu.pc += 1
+    cpu.setFlagH(true)
+    cpu.setFlagN(true)
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "CPL"
