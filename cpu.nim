@@ -626,25 +626,25 @@ proc execute_cb (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 2
     result.debugStr = "SWAP C"
   of 0x32:
-    cpu.bc = setMsb(cpu.de, cpu.doSwap(readMsb(cpu.de)))
+    cpu.de = setMsb(cpu.de, cpu.doSwap(readMsb(cpu.de)))
     cpu.pc += 2
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "SWAP D"
   of 0x33:
-    cpu.bc = setLsb(cpu.de, cpu.doSwap(readLsb(cpu.de)))
+    cpu.de = setLsb(cpu.de, cpu.doSwap(readLsb(cpu.de)))
     cpu.pc += 2
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "SWAP E"
   of 0x34:
-    cpu.bc = setMsb(cpu.hl, cpu.doSwap(readMsb(cpu.hl)))
+    cpu.hl = setMsb(cpu.hl, cpu.doSwap(readMsb(cpu.hl)))
     cpu.pc += 2
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "SWAP H"
   of 0x35:
-    cpu.bc = setLsb(cpu.hl, cpu.doSwap(readLsb(cpu.hl)))
+    cpu.hl = setLsb(cpu.hl, cpu.doSwap(readLsb(cpu.hl)))
     cpu.pc += 2
     result.tClock = 8
     result.mClock = 2
@@ -662,7 +662,7 @@ proc execute_cb (cpu: var CPU; opcode: uint8): TickResult =
     cpu.pc += 2
     result.tClock = 8
     result.mClock = 2
-    result.debugStr = "SWAP L"
+    result.debugStr = "SWAP A"
   of 0x38:
     cpu.bc = setMsb(cpu.bc, cpu.doLogicalShiftRigth(readMsb(cpu.bc)))
     cpu.pc += 2
