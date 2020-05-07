@@ -37,6 +37,7 @@ proc readByte*(gameboy: Gameboy, address: uint16): uint8 =
     return gameboy.joypad
   if 0xFF0F == address:
     return gameboy.intFlag
+
   # PPU Allocations
   if 0xFF40 == address:
     return gameboy.ppu.lcdc
@@ -104,6 +105,19 @@ proc writeByte*(gameboy: Gameboy; address: uint16; value: uint8): void =
     #gameboy.ppu.writeByte(address, value)
   else:
     discard
+  # Serial IO
+  if 0xFF01 == address:
+    let c = char(value)
+    if value == 10:
+      echo gameboy.message
+      # if gameboy.message == "Failed":
+        # quit()
+      gameboy.message = ""
+    else:
+      gameboy.message &= c
+  if 0xFF02 == address:
+    discard
+
   if 0xFF00 == address:
     discard  # Joypad will have the proper value either way.
   if 0xFF0F == address:
