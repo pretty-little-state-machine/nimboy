@@ -47,23 +47,22 @@ proc main =
 
   # Preload tetris
   # game.gameboy.cartridge.loadRomFile("roms/tetris.gb")
-  # game.gameboy.cartridge.loadRomFile("roms/01-special.gb")
-  # game.gameboy.cartridge.loadRomFile("roms/02-interrupts.gb")
-  # game.gameboy.cartridge.loadRomFile("roms/03-op sp,hl.gb")
-  game.gameboy.cartridge.loadRomFile("roms/04-op r,imm.gb")
-  # game.gameboy.cartridge.loadRomFile("roms/05-op rp.gb")
-  # game.gameboy.cartridge.loadRomFile("roms/06-ld r,r.gb") 
-  # game.gameboy.cartridge.loadRomFile("roms/07-jr,jp,call,ret,rst.gb")
-  # game.gameboy.cartridge.loadRomFile("roms/08-misc instrs.gb")
-  # game.gameboy.cartridge.loadRomFile("roms/10-bit ops.gb")
-  # game.gameboy.cartridge.loadRomFile("roms/09-op r,r.gb")
-  # game.gameboy.cartridge.loadRomFile("roms/11-op a,(hl).gb")
-  # game.gameboy.cartridge.loadRomFile("roms/cpu_instrs.gb")
-  # game.gameboy.cartridge.loadRomFile("roms/instr_timing.gb")
   
   # Blargg's CPU Roms
-  game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/cpu_instrs/individual/06-ld r,r.gb")
-
+  # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/cpu_instrs/individual/01-special.gb")
+  # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/cpu_instrs/individual/02-interrupts.gb")
+  game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/cpu_instrs/individual/03-op sp,hl.gb")
+  # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/cpu_instrs/individual/04-op r,imm.gb")
+  # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/cpu_instrs/individual/05-op rp.gb")
+  # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/cpu_instrs/individual/06-ld r,r.gb") 
+  # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/cpu_instrs/individual/07-jr,jp,call,ret,rst.gb")
+  # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/cpu_instrs/individual/08-misc instrs.gb")
+  # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/cpu_instrs/individual/09-op r,r.gb")
+  # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/cpu_instrs/individual/10-bit ops.gb")
+  # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/cpu_instrs/individual/11-op a,(hl).gb")
+  # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/cpu_instrs/cpu_instrs.gb")
+  # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/instr_timing/instr_timing.gb")
+  
   #sleep (3000)
   # game.gameboy.ppu.fillTestTiles()
   while running:
