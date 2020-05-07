@@ -2284,7 +2284,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     cpu.hl = setLsb(cpu.hl, byte)
     byte = cpu.doAdd(readMsb(cpu.hl), readMsb(cpu.hl), true)
     cpu.hl = setMsb(cpu.hl, byte)
-    cpu.setFlagN(true)
+    cpu.setFlagN(false)
     cpu.pc += 1
     result.tClock = 8
     result.mClock = 2
@@ -2410,6 +2410,8 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.debugStr = "LD (HL) " & $toHex(byte)
   of 0x37:
     cpu.setFlagC(true)
+    cpu.setFlagN(false)
+    cpu.setFlagH(false)
     cpu.pc += 1
     result.tClock = 4
     result.mClock = 1
@@ -2431,7 +2433,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     cpu.hl = setLsb(cpu.hl, byte)
     byte = cpu.doAdd(readMsb(cpu.hl), readMsb(cpu.sp), true)
     cpu.hl = setMsb(cpu.hl, byte)
-    cpu.setFlagN(true)
+    cpu.setFlagN(false)
     cpu.pc += 1
     result.tClock = 8
     result.mClock = 2
