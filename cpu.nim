@@ -1967,7 +1967,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 2
     result.debugStr = "LD B " & $toHex(byte)
   of 0x07:
-    cpu.a = cpu.doRollLeft(cpu.a, true)
+    cpu.a = cpu.doRollLeft(cpu.a, false)
     cpu.pc += 1
     cpu.setFlagZ(false)
     result.tClock = 4
@@ -2036,7 +2036,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 2
     result.debugStr = "LD C " & $toHex(byte)
   of 0x0F:
-    cpu.a = cpu.doRollRight(cpu.a, true)
+    cpu.a = cpu.doRollRight(cpu.a, false)
     cpu.setFlagZ(false)
     cpu.pc += 1
     result.tClock = 4
@@ -2101,7 +2101,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 2
     result.debugStr = "LD D " & $toHex(byte)
   of 0x17:
-    cpu.a = cpu.doRollLeft(cpu.a, false)
+    cpu.a = cpu.doRollLeft(cpu.a, true)
     cpu.pc += 1
     cpu.setFlagZ(false)
     result.tClock = 4
@@ -2170,7 +2170,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 2
     result.debugStr = "LD E " & $toHex(byte)
   of 0x1F:
-    cpu.a = cpu.doRollRight(cpu.a, false)
+    cpu.a = cpu.doRollRight(cpu.a, true)
     cpu.setFlagZ(false)
     cpu.pc += 1
     result.tClock = 4
