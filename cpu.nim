@@ -314,201 +314,201 @@ proc execute_cb (cpu: var CPU; opcode: uint8): TickResult =
   # Executes a single CPU Opcode
   case opcode
   of 0x00:
-    cpu.bc = setMsb(cpu.bc, cpu.doRollLeft(readMsb(cpu.bc), true))
+    cpu.bc = setMsb(cpu.bc, cpu.doRollLeft(readMsb(cpu.bc), false))
     cpu.pc += 2
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "RLC B"
   of 0x01:
-    cpu.bc = setLsb(cpu.bc, cpu.doRollLeft(readLsb(cpu.bc), true))
+    cpu.bc = setLsb(cpu.bc, cpu.doRollLeft(readLsb(cpu.bc), false))
     cpu.pc += 2
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "RLC C"
   of 0x02:
-    cpu.de = setMsb(cpu.de, cpu.doRollLeft(readMsb(cpu.de), true))
+    cpu.de = setMsb(cpu.de, cpu.doRollLeft(readMsb(cpu.de), false))
     cpu.pc += 2
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "RLC D"
   of 0x03:
-    cpu.de = setLsb(cpu.de, cpu.doRollLeft(readLsb(cpu.de), true))
+    cpu.de = setLsb(cpu.de, cpu.doRollLeft(readLsb(cpu.de), false))
     cpu.pc += 2
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "RLC E"
   of 0x04:
-    cpu.hl = setMsb(cpu.hl, cpu.doRollLeft(readMsb(cpu.hl), true))
+    cpu.hl = setMsb(cpu.hl, cpu.doRollLeft(readMsb(cpu.hl), false))
     cpu.pc += 2
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "RLC H"
   of 0x05:
-    cpu.hl = setLsb(cpu.hl, cpu.doRollLeft(readLsb(cpu.hl), true))
+    cpu.hl = setLsb(cpu.hl, cpu.doRollLeft(readLsb(cpu.hl), false))
     cpu.pc += 2
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "RLC L"
   of 0x06:
     var value = cpu.mem.gameboy.readByte(cpu.hl)
-    value =  cpu.doRollLeft(value, true)
+    value =  cpu.doRollLeft(value, false)
     cpu.mem.gameboy.writeByte(cpu.hl, value)
     cpu.pc += 2
     result.tClock = 16
     result.mClock = 4
     result.debugStr = "RLC (HL) (" & $toHex(cpu.hl) & ")"
   of 0x07:
-    cpu.a = cpu.doRollLeft(cpu.a, true)
+    cpu.a = cpu.doRollLeft(cpu.a, false)
     cpu.pc += 2
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "RLC A"
   of 0x08:
-    cpu.bc = setMsb(cpu.bc, cpu.doRollRight(readMsb(cpu.bc), true))
+    cpu.bc = setMsb(cpu.bc, cpu.doRollRight(readMsb(cpu.bc), false))
     cpu.pc += 2
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "RRC B"
   of 0x09:
-    cpu.bc = setLsb(cpu.bc, cpu.doRollRight(readLsb(cpu.bc), true))
+    cpu.bc = setLsb(cpu.bc, cpu.doRollRight(readLsb(cpu.bc), false))
     cpu.pc += 2
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "RRC C"
   of 0x0A:
-    cpu.de = setMsb(cpu.de, cpu.doRollRight(readMsb(cpu.de), true))
+    cpu.de = setMsb(cpu.de, cpu.doRollRight(readMsb(cpu.de), false))
     cpu.pc += 2
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "RRC D"
   of 0x0B:
-    cpu.de = setLsb(cpu.de, cpu.doRollRight(readLsb(cpu.de), true))
+    cpu.de = setLsb(cpu.de, cpu.doRollRight(readLsb(cpu.de), false))
     cpu.pc += 2
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "RRC E"
   of 0x0C:
-    cpu.hl = setMsb(cpu.hl, cpu.doRollRight(readMsb(cpu.hl), true))
+    cpu.hl = setMsb(cpu.hl, cpu.doRollRight(readMsb(cpu.hl), false))
     cpu.pc += 2
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "RRC H"
   of 0x0D:
-    cpu.hl = setLsb(cpu.hl, cpu.doRollRight(readLsb(cpu.hl), true))
+    cpu.hl = setLsb(cpu.hl, cpu.doRollRight(readLsb(cpu.hl), false))
     cpu.pc += 2
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "RRC L"
   of 0x0E:
     var value = cpu.mem.gameboy.readByte(cpu.hl)
-    value =  cpu.doRollRight(value, true)
+    value =  cpu.doRollRight(value, false)
     cpu.mem.gameboy.writeByte(cpu.hl, value)
     cpu.pc += 2
     result.tClock = 16
     result.mClock = 4
     result.debugStr = "RRC (HL) (" & $toHex(cpu.hl) & ")"
   of 0x0F:
-    cpu.a = cpu.doRollRight(cpu.a, true)
+    cpu.a = cpu.doRollRight(cpu.a, false)
     cpu.pc += 2
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "RRC A"
   of 0x10:
-    cpu.bc = setMsb(cpu.bc, cpu.doRollLeft(readMsb(cpu.bc), false))
+    cpu.bc = setMsb(cpu.bc, cpu.doRollLeft(readMsb(cpu.bc), true))
     cpu.pc += 2
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "RL B"
   of 0x11:
-    cpu.bc = setLsb(cpu.bc, cpu.doRollLeft(readLsb(cpu.bc), false))
+    cpu.bc = setLsb(cpu.bc, cpu.doRollLeft(readLsb(cpu.bc), true))
     cpu.pc += 2
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "RL C"
   of 0x12:
-    cpu.de = setMsb(cpu.de, cpu.doRollLeft(readMsb(cpu.de), false))
+    cpu.de = setMsb(cpu.de, cpu.doRollLeft(readMsb(cpu.de), true))
     cpu.pc += 2
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "RL D"
   of 0x13:
-    cpu.de = setLsb(cpu.de, cpu.doRollLeft(readLsb(cpu.de), false))
+    cpu.de = setLsb(cpu.de, cpu.doRollLeft(readLsb(cpu.de), true))
     cpu.pc += 2
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "RL E"
   of 0x14:
-    cpu.hl = setMsb(cpu.hl, cpu.doRollLeft(readMsb(cpu.hl), false))
+    cpu.hl = setMsb(cpu.hl, cpu.doRollLeft(readMsb(cpu.hl), true))
     cpu.pc += 2
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "RL H"
   of 0x15:
-    cpu.hl = setLsb(cpu.hl, cpu.doRollLeft(readLsb(cpu.hl), false))
+    cpu.hl = setLsb(cpu.hl, cpu.doRollLeft(readLsb(cpu.hl), true))
     cpu.pc += 2
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "RL L"
   of 0x16:
     var value = cpu.mem.gameboy.readByte(cpu.hl)
-    value =  cpu.doRollLeft(value, false)
+    value =  cpu.doRollLeft(value, true)
     cpu.mem.gameboy.writeByte(cpu.hl, value)
     cpu.pc += 2
     result.tClock = 16
     result.mClock = 4
     result.debugStr = "RL (HL) (" & $toHex(cpu.hl) & ")"
   of 0x17:
-    cpu.a = cpu.doRollLeft(cpu.a, false)
+    cpu.a = cpu.doRollLeft(cpu.a, true)
     cpu.pc += 2
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "RL A"
   of 0x18:
-    cpu.bc = setMsb(cpu.bc, cpu.doRollRight(readMsb(cpu.bc), false))
+    cpu.bc = setMsb(cpu.bc, cpu.doRollRight(readMsb(cpu.bc), true))
     cpu.pc += 2
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "RR B"
   of 0x19:
-    cpu.bc = setLsb(cpu.bc, cpu.doRollRight(readLsb(cpu.bc), false))
+    cpu.bc = setLsb(cpu.bc, cpu.doRollRight(readLsb(cpu.bc), true))
     cpu.pc += 2
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "RR C"
   of 0x1A:
-    cpu.de = setMsb(cpu.de, cpu.doRollRight(readMsb(cpu.de), false))
+    cpu.de = setMsb(cpu.de, cpu.doRollRight(readMsb(cpu.de), true))
     cpu.pc += 2
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "RR D"
   of 0x1B:
-    cpu.de = setLsb(cpu.de, cpu.doRollRight(readLsb(cpu.de), false))
+    cpu.de = setLsb(cpu.de, cpu.doRollRight(readLsb(cpu.de), true))
     cpu.pc += 2
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "RR E"
   of 0x1C:
-    cpu.hl = setMsb(cpu.hl, cpu.doRollRight(readMsb(cpu.hl), false))
+    cpu.hl = setMsb(cpu.hl, cpu.doRollRight(readMsb(cpu.hl), true))
     cpu.pc += 2
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "RR H"
   of 0x1D:
-    cpu.hl = setLsb(cpu.hl, cpu.doRollRight(readLsb(cpu.hl), false))
+    cpu.hl = setLsb(cpu.hl, cpu.doRollRight(readLsb(cpu.hl), true))
     cpu.pc += 2
     result.tClock = 8
     result.mClock = 2
     result.debugStr = "RR L"
   of 0x1E:
     var value = cpu.mem.gameboy.readByte(cpu.hl)
-    value =  cpu.doRollRight(value, false)
+    value =  cpu.doRollRight(value, true)
     cpu.mem.gameboy.writeByte(cpu.hl, value)
     cpu.pc += 2
     result.tClock = 16
     result.mClock = 4
     result.debugStr = "RR (HL) (" & $toHex(cpu.hl) & ")"
   of 0x1F:
-    cpu.a = cpu.doRollRight(cpu.a, false)
+    cpu.a = cpu.doRollRight(cpu.a, true)
     cpu.pc += 2
     result.tClock = 8
     result.mClock = 2
