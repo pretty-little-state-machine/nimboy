@@ -308,6 +308,33 @@ proc doBitReset(cpu:var CPU; value: uint8, bit: uint8): uint8 =
   var newValue = bitand(value, not mask)
   result = newValue
 
+proc getSPRelative(cpu:var CPU; value: int8): uint16 =
+    var byte: uint8 = 0
+    var offset: uint8 = 0
+    var signed = value
+    var newSp = cpu.sp
+    var saveFlagC = false
+    var saveFlagH = false
+    if signed < 0:
+      offset = uint8(abs(signed))
+      byte = cpu.doSub(readLsb(newSp), offset, false)
+      newSp = setLsb(newSp, byte)
+      byte = cpu.doSub(readMsb(newSp), 0, true)
+      newSp = setMsb(newSp, byte)
+      saveFlagC = bitand(newSp, 0xFF) <= bitand(cpu.sp, 0xFF)
+      saveFlagH = bitand(newSp, 0xF) <= bitand(cpu.sp, 0xF)
+    else:
+      offset = uint8(abs(signed))
+      byte = cpu.doAdd(readLsb(newSp), offset, false)
+      newSp = setLsb(newSp, byte)
+      saveFlagC = cpu.cFlag
+      saveFlagH = cpu.hFlag
+      byte = cpu.doAdd(readMsb(newSp), 0, true)
+      newSp = setMsb(newSp, byte)
+    cpu.setFlagC(saveFlagC)
+    cpu.setFlagH(saveFlagH)
+    result = newSp
+
 template toSigned(x: uint8): int8 = cast[int8](x)
 
 proc execute_cb (cpu: var CPU; opcode: uint8): TickResult =
@@ -3566,24 +3593,11 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 4
     result.debugStr = "RST 20"
   of 0xE8:
-    var byte: uint8 = 0
-    var offset: uint8 = 0
     var signed = toSigned(cpu.mem.gameboy.readbyte(cpu.pc + 1))
-    if signed < 0:
-      offset = uint8(abs(signed))
-      byte = cpu.doSub(readLsb(cpu.sp), offset, false)
-      cpu.sp = setLsb(cpu.sp, byte)
-      byte = cpu.doSub(readMsb(cpu.sp), 0, true)
-      cpu.sp = setMsb(cpu.sp, byte)
-    else:
-      offset = uint8(abs(signed))
-      byte = cpu.doAdd(readLsb(cpu.sp), offset, false)
-      cpu.sp = setLsb(cpu.sp, byte)
-      byte = cpu.doAdd(readMsb(cpu.sp), 0, true)
-      cpu.sp = setMsb(cpu.sp, byte)
+    var newSp = cpu.getSPRelative(signed)
+    cpu.sp = newSp
     cpu.setFlagZ(false)
     cpu.setFlagN(false)
-    signed = toSigned(cpu.mem.gameboy.readbyte(cpu.pc + 1))
     cpu.pc += 2
     result.tClock = 16
     result.mClock = 4
@@ -3669,26 +3683,11 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 4
     result.debugStr = "RST 30"
   of 0xF8:
-    var byte: uint8 = 0
-    var offset: uint8 = 0
     var signed = toSigned(cpu.mem.gameboy.readbyte(cpu.pc + 1))
-    var newSp = cpu.sp
-    if signed < 0:
-      offset = uint8(abs(signed))
-      byte = cpu.doSub(readLsb(newSp), offset, false)
-      newSp = setLsb(newSp, byte)
-      byte = cpu.doSub(readMsb(newSp), 0, true)
-      newSp = setMsb(newSp, byte)
-    else:
-      offset = uint8(abs(signed))
-      byte = cpu.doAdd(readLsb(newSp), offset, false)
-      newSp = setLsb(newSp, byte)
-      byte = cpu.doAdd(readMsb(newSp), 0, true)
-      newSp = setMsb(newSp, byte)
+    var newSp = cpu.getSPRelative(signed)
     cpu.hl = newSp
     cpu.setFlagZ(false)
     cpu.setFlagN(false)
-    signed = toSigned(cpu.mem.gameboy.readbyte(cpu.pc + 1))
     cpu.pc += 2
     result.tClock = 12
     result.mClock = 3
