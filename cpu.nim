@@ -2269,25 +2269,26 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 2
     result.debugStr = "LD H " & $toHex(byte)
   of 0x27:
-    var oldValue = cpu.a
     var newValue:uint16 = cpu.a
-    let oldCarry = cpu.cFlag
     var newCarry = false
-    if bitand(oldValue, 0x0F) > 9 or cpu.hFlag:
-      newValue += 6
-      if bitand(newValue, 0x100) == 0x100:
-        newCarry = true
-      cpu.setFlagC(oldCarry or newCarry)
-      cpu.setFlagH(true)
-    else:
-      cpu.setFlagH(false)
+    var correction:uint8 = 0
+    
+    if cpu.hFlag or (not cpu.nFlag and (bitand(cpu.a, 0x0F) > 9)):
+      correction = bitOr(correction, 0x06)
+      
+    if cpu.cFlag or (not cpu.nFlag and (cpu.a > 0x99)):
+      correction = bitOr(correction, 0x60)
+      newCarry = true
 
-    if oldValue > 0x99 or oldCarry:
-      newValue += 0x80
-      cpu.setFlagC(true)
+    if cpu.nFlag:
+      newValue = newValue - correction
     else:
-      cpu.setFlagC(false)
+      newValue = newValue + correction
+
+    newValue = bitAnd(newValue, 0xFF)
+      
     cpu.a = uint8(newValue)
+    cpu.setFlagC(newCarry)
     cpu.setFlagZ(0 == cpu.a)
     cpu.setFlagH(false)
     cpu.pc += 1
