@@ -13,10 +13,10 @@ type
     internalRamBank1*: array[8*4096'u16, uint8] # Internal RAM ($D000-$DFFF)
     highRam*: array[8*128'u16, uint8] # High RAM ($FF80-FFFE)
     joypad*: uint8      # $FF00 - Joypad register
-    osc*: uint8         # Internal Oscillator - Master Clock, only needs 8 bits, the Timer.div does the real work.
+    osc*: uint32        # Internal Oscillator - Master Clock - It's ok to overflow this
     intFlag*: uint8     # Interrupt Flags - 0xFF0F
     intEnable*: uint8   # Interrupt Enable Register - 0xFFFF
-    stopped*: bool       # STOP command affects other modules from CPU
+    stopped*: bool      # STOP command affects other modules from CPU
     message*: string
 
   GameboyMode* = enum
@@ -51,7 +51,7 @@ type
     halted*: bool         # Halted state for CPU power savings
     breakpoint*: uint16   # Single breakpoint for now
     eiPending*: bool      # Set when the EI Opcode is issued - Used for delaying the flip
-    ime*: bool            # Interrupts Enabled (INTERNAL - NOT VISIBLE TO OPCODES)
+    ime*: bool            # Global Interrupts Enabled (INTERNAL - NOT VISIBLE TO OPCODES)
 
   CPUMemory* = ref object
       gameboy*: Gameboy

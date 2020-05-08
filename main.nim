@@ -50,7 +50,7 @@ proc main =
   
   # Blargg's CPU Roms
   # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/cpu_instrs/individual/01-special.gb")
-  # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/cpu_instrs/individual/02-interrupts.gb")
+  game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/cpu_instrs/individual/02-interrupts.gb")
   # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/cpu_instrs/individual/03-op sp,hl.gb")
   # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/cpu_instrs/individual/04-op r,imm.gb")
   # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/cpu_instrs/individual/05-op rp.gb")
@@ -60,7 +60,7 @@ proc main =
   # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/cpu_instrs/individual/09-op r,r.gb")
   # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/cpu_instrs/individual/10-bit ops.gb")
   # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/cpu_instrs/individual/11-op a,(hl).gb")
-  game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/cpu_instrs/cpu_instrs.gb")
+  # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/cpu_instrs/cpu_instrs.gb")
   # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/instr_timing/instr_timing.gb")
   
   #sleep (3000)
@@ -98,11 +98,11 @@ proc main =
     let str = game.gameboy.step().debugStr
     if str.contains("UNKNOWN OPCODE"): #or 
       #str.contains("BREAK!"):
-      echo str
+      #echo str
       quit("")
     else:
-      #discard
-      echo str
+      discard
+      #echo str
     #debug(game.gameboy, debugger)
     #limitFrameRate()
 main()
