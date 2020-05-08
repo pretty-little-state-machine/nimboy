@@ -3,6 +3,7 @@ import bitops
 import cartridge
 import ppu
 import timer
+import strutils
 
 export types.CPUMemory
 
@@ -119,9 +120,11 @@ proc writeByte*(gameboy: Gameboy; address: uint16; value: uint8): void =
   if 0xFF01 == address:
     let c = char(value)
     if value == 10:
-      echo gameboy.message
-      # if gameboy.message == "Failed":
-        # quit()
+      gameboy.message &= " "
+      stdout.write(gameboy.message)
+      if "Passed" in gameboy.message or "Failed" in gameboy.message:
+        echo ""
+        quit()
       gameboy.message = ""
     else:
       gameboy.message &= c

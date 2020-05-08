@@ -2,6 +2,7 @@ import sdl2
 import times
 import os
 import strutils
+import parseopt
 # Nimboy imports
 import debugger
 import gameboy
@@ -33,7 +34,7 @@ proc render(game: Game): void =
   game.renderer.step(game.gameboy.ppu)
   game.renderer.present()
 
-proc main =
+proc main(file: string = ""): void =
   let tileMapRenderer = getRenderer("Tile Data", 256 * tileDebuggerScale, 256 * tileDebuggerScale)
 
   # Game loop, draws each frame
@@ -45,24 +46,25 @@ proc main =
     running: bool = true
     vSyncTime: float
 
-  # Preload tetris
-  # game.gameboy.cartridge.loadRomFile("roms/tetris.gb")
-  
-  # Blargg's CPU Roms
-  # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/cpu_instrs/individual/01-special.gb")
-  game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/cpu_instrs/individual/02-interrupts.gb")
-  # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/cpu_instrs/individual/03-op sp,hl.gb")
-  # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/cpu_instrs/individual/04-op r,imm.gb")
-  # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/cpu_instrs/individual/05-op rp.gb")
-  # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/cpu_instrs/individual/06-ld r,r.gb") 
-  # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/cpu_instrs/individual/07-jr,jp,call,ret,rst.gb")
-  # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/cpu_instrs/individual/08-misc instrs.gb")
-  # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/cpu_instrs/individual/09-op r,r.gb")
-  # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/cpu_instrs/individual/10-bit ops.gb")
-  # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/cpu_instrs/individual/11-op a,(hl).gb")
-  # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/cpu_instrs/cpu_instrs.gb")
-  # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/instr_timing/instr_timing.gb")
-  
+  if "" == file:
+    # Preload tetris
+    # game.gameboy.cartridge.loadRomFile("roms/tetris.gb")
+    # Blargg's CPU Roms
+    # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/cpu_instrs/individual/01-special.gb")
+    # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/cpu_instrs/individual/02-interrupts.gb")
+    game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/cpu_instrs/individual/03-op sp,hl.gb")
+    # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/cpu_instrs/individual/04-op r,imm.gb")
+    # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/cpu_instrs/individual/05-op rp.gb")
+    # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/cpu_instrs/individual/06-ld r,r.gb") 
+    # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/cpu_instrs/individual/07-jr,jp,call,ret,rst.gb")
+    # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/cpu_instrs/individual/08-misc instrs.gb")
+    # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/cpu_instrs/individual/09-op r,r.gb")
+    # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/cpu_instrs/individual/10-bit ops.gb")
+    # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/cpu_instrs/individual/11-op a,(hl).gb")
+    # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/cpu_instrs/cpu_instrs.gb")
+    # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/instr_timing/instr_timing.gb")
+  else:
+    game.gameboy.cartridge.loadRomFile(file)
   #sleep (3000)
   # game.gameboy.ppu.fillTestTiles()
   while running:
@@ -105,5 +107,17 @@ proc main =
       #echo str
     #debug(game.gameboy, debugger)
     #limitFrameRate()
-main()
+
+
+for kind, key, value in getOpt():
+  case kind
+  of cmdLongOption, cmdShortOption:
+    case key
+    of "rom":
+      main(value)
+    else:
+      main("")
+  else:
+    main("")
+main("")
 #testSound()
