@@ -2368,8 +2368,8 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     cpu.pc += 1
     cpu.setFlagH(true)
     cpu.setFlagN(true)
-    result.tClock = 8
-    result.mClock = 2
+    result.tClock = 4
+    result.mClock = 1
     result.debugStr = "CPL"
   of 0x30:
     let signed = toSigned(cpu.mem.gameboy.readbyte(cpu.pc + 1))
@@ -3391,12 +3391,12 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     cpu.pc += 3
     if cpu.zFlag:
       cpu.pc = word
-      result.tClock = 20
-      result.mClock = 5
+      result.tClock = 16
+      result.mClock = 4
       result.debugStr = "JP Z, (" & $toHex(word) & ")"
     else:
-      result.tClock = 8
-      result.mClock = 2
+      result.tClock = 12
+      result.mClock = 3
       result.debugStr = "JP Z (missed)"
   of 0xCB:
     let cb_opcode = cpu.mem.gameboy.readbyte(cpu.pc + 1)
@@ -3516,12 +3516,12 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     cpu.pc += 3
     if cpu.cFlag:
       cpu.pc = word
-      result.tClock = 20
-      result.mClock = 5
+      result.tClock = 16
+      result.mClock = 4
       result.debugStr = "JP C, (" & $toHex(word) & ")"
     else:
-      result.tClock = 8
-      result.mClock = 2
+      result.tClock = 12
+      result.mClock = 3
       result.debugStr = "JP C (missed)"
   # NO 0xDB
   of 0xDC:
