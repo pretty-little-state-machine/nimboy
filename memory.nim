@@ -2,6 +2,7 @@ import types
 import bitops
 import cartridge
 import ppu
+import timer
 
 export types.CPUMemory
 
@@ -35,9 +36,18 @@ proc readByte*(gameboy: Gameboy, address: uint16): uint8 =
     return gameboy.ppu.readByte(address)
   if 0xFF00 == address:
     return gameboy.joypad
+  # TIMER Registers
+  if 0xFF04 == address:
+    return gameboy.timer.readDiv()
+  if 0xFF05 == address:
+    return gameboy.timer.timaCounter
+  if 0xFF06 == address:
+    return gameboy.timer.timaModulo
+  if 0xFF07 == address:
+    return gameboy.timer.tac
+  # Interrupts
   if 0xFF0F == address:
     return gameboy.intFlag
-
   # PPU Allocations
   if 0xFF40 == address:
     return gameboy.ppu.lcdc
@@ -120,6 +130,14 @@ proc writeByte*(gameboy: Gameboy; address: uint16; value: uint8): void =
 
   if 0xFF00 == address:
     discard  # Joypad will have the proper value either way.
+  if 0xFF04 == address:
+    gameboy.timer.resetDiv() # Reset the DIV on any writes.
+  if 0xFF05 == address:
+    gameboy.timer.timaCounter = value
+  if 0xFF06 == address:
+    gameboy.timer.timaModulo = value
+  if 0xFF07 == address:
+    gameboy.timer.tac = value
   if 0xFF0F == address:
     gameboy.intFlag = value
   # PPU Allocations

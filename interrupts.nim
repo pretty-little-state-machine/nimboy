@@ -42,51 +42,31 @@ proc testJoypadIntEnabled*(gameboy: Gameboy): bool =
   return gameboy.intEnable.testBit(4)
 
 proc triggerVSyncInterrupt*(gameboy: var Gameboy): void =
-  var ie = gameboy.intFlag
-  ie.setBit(0)
-  gameboy.intFlag = ie
+  gameboy.intFlag.setBit(0)
 
 proc triggerLCDStatInterrupt*(gameboy: var Gameboy): void =
-  var ie = gameboy.intFlag
-  ie.setBit(1)
-  gameboy.intFlag = ie
+  gameboy.intFlag.setBit(1)
 
 proc triggerTimerInterrupt*(gameboy: var Gameboy): void =
-  var ie = gameboy.intFlag
-  ie.setBit(2)
-  gameboy.intFlag = ie
+  gameboy.intFlag.setBit(2)
 
 proc triggerSerialInterrupt*(gameboy: var Gameboy): void =
-  var ie = gameboy.intFlag
-  ie.setBit(3)
-  gameboy.intFlag = ie
+  gameboy.intFlag.setBit(3)
 
 proc triggerJoypadInterrupt*(gameboy: var Gameboy): void =
-  var ie = gameboy.intFlag
-  ie.setBit(4)
-  gameboy.intFlag = ie
+  gameboy.intFlag.setBit(4)
 
 proc clearVSyncInterrupt*(gameboy: var Gameboy): void =
-  var ie = gameboy.intFlag
-  ie.clearBit(0)
-  gameboy.intFlag = ie
+  gameboy.intFlag.clearBit(0)
 
 proc clearLCDStatInterrupt*(gameboy: var Gameboy): void =
-  var ie = gameboy.intFlag
-  ie.clearBit(1)
-  gameboy.intFlag = ie
+  gameboy.intFlag.clearBit(1)
 
 proc clearTimerInterrupt*(gameboy: var Gameboy): void =
-  var ie = gameboy.intFlag
-  ie.clearBit(2)
-  gameboy.intFlag = ie
+  gameboy.intFlag.clearBit(2)
 
 proc clearSerialInterrupt*(gameboy: var Gameboy): void =
-  var ie = gameboy.intFlag
-  ie.clearBit(3)
-  gameboy.intFlag = ie
+  gameboy.intFlag.clearBit(3)
 
 proc clearJoypadInterrupt*(gameboy: var Gameboy): void =
-  var ie = gameboy.intFlag
-  ie.clearBit(4)
-  gameboy.intFlag = ie
+  gameboy.intFlag.clearBit(4)

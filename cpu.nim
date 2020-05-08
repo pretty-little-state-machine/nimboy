@@ -3507,7 +3507,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
       result.debugStr = "RET C (missed)"
   of 0xD9:
     cpu.ret()
-    cpu.eiPending = true # Will enable interrupts AFTER the next instructino
+    cpu.ime = true # Will enable interrupts IMMEDIATELY - Different than EI!
     result.tClock = 16
     result.mClock = 4
     result.debugStr = "RETI"
@@ -3744,8 +3744,9 @@ proc callInterrupt(cpu: var CPU; address: uint16; flagBit: uint8;): TickResult =
     result.tClock = 4
     result.mClock = 1
     cpu.halted = false
+    cpu.pc += 1
   if cpu.ime:
-    # Clear the interrupt that fired only. Interrupts are DISABLED here.
+    # Clear the interrupt that fired only. Global Interrupts are DISABLED here.
     cpu.ime = false
     cpu.call(address)
     result.tClock += 20
@@ -3783,7 +3784,6 @@ proc handleInterrupts(cpu: var CPU): TickResult =
     return cpu.callInterrupt(0x0058, 3)
   if cpu.mem.gameboy.testJoypadInterrupt() and cpu.mem.gameboy.testJoypadIntEnabled():
     return cpu.callInterrupt(0x0060, 4)
-  
 
 proc step*(cpu: var CPU): TickResult =   
   # Executes a single step for the CPU.
@@ -3791,28 +3791,29 @@ proc step*(cpu: var CPU): TickResult =
   if cpu.breakpoint == cpu.pc:
     result.debugStr = "BREAK!"
     return
+
+  # If the IME is pending, then we must wait for one more opcode execution
+  var queueIme: bool = false
+  if cpu.eiPending:
+    cpu.eiPending = false
+    queueIme = true
   
   # A response of 0 cycles indicates nothing happened, no interrupts to process - Circuit breaker
   let intResult = cpu.handleInterrupts()
   if 0 < intResult.tClock:
     return intResult
 
-  # If there's pending interrupt enable, flip it off and queue up the toggle.
-  var enableInterrupts = false
-  if cpu.eiPending:
-    cpu.eiPending = false
-    enableInterrupts = true
-
   # Execute the next instruction and prepend the PC (before execution)
-  let tmpPc = cpu.pc
-  result = cpu.execute(cpu.mem.gameboy.readByte(cpu.pc))
-  result.debugStr = $toHex(tmpPc) & " : " & result.debugStr
-  
-  # Process the enableInterrupts toggle if it was queued
-  if enableInterrupts:
+  let 
+    tmpPc = cpu.pc
+    opcode = cpu.mem.gameboy.readByte(cpu.pc)
+  result = cpu.execute(opcode)
+  result.debugStr = $toHex(tmpPc) & ": " & $toHex(opcode) & ": " & result.debugStr
+
+  # Now we can flip on intterupts again
+  if queueIme:
     cpu.ime = true
 
 proc addBreakpoint*(cpu: var CPU; breakpoint: uint16) =
   # Addres a breakpoint to the CPU. This will NOT be cleared when hit.
   cpu.breakpoint = breakpoint
-

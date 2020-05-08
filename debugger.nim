@@ -10,6 +10,7 @@ import gameboy
 import nimboyutils
 import cpu
 import memory
+import timer
 
 type
   Debugger* = ref DebuggerObj
@@ -286,12 +287,47 @@ proc drawPpuMode(ppu: PPU) =
   else:
     stdout.write("False")
 
+
+proc drawTimer(timer: Timer) =
+  setCursorPos(64, 20)
+  setForegroundColor(fgWhite, true)
+  setCursorPos(64, 20)
+  stdout.write ("Timer: ")
+  setCursorPos(72, 20)
+  if timer.timaEnabled():
+    setForegroundColor(fgGreen, false)
+    stdout.write("ENA")
+  else:
+    setForegroundColor(fgRed, false)
+    stdout.write("DIS")
+  setForegroundColor(fgWhite, true)
+  setCursorPos(64, 21)
+  stdout.write("TimaRate: ")
+  setCursorPos(74, 21)  
+  case timer.timaRate()
+  of 16:
+    stdout.write("16: 262144 hz")
+  of 1024:
+    stdout.write("1024: 4096 hz")
+  of 256:
+    stdout.write("256: 16384 hz")
+  of 64:
+    stdout.write("64: 65536 hz")
+  else:
+    discard
+  setCursorPos(64, 22)
+  stdout.write(" DIV: " & $timer.divReg.counter)
+  setCursorPos(64, 23)
+  stdout.write("TIMA: " & $timer.timaCounter)
+
+
 proc draw(gameboy: Gameboy; debugger: Debugger) =
   drawCliTables()
   drawCpu(gameboy.cpu)
   drawTitle(gameboy.cartridge)
   drawInterrupts(gameboy)
   drawPpuMode(gameboy.ppu)
+  drawTimer(gameboy.timer)
   drawMemoryLoc(gameboy, debugger.mapAddr) #Default stack pointer
   # OPCode Decoder
   var i = 0

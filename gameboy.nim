@@ -12,6 +12,7 @@ proc powerOn(gameboy:var Gameboy) =
     gameboy.ppu.gb = newPPUGb(gameboy)
     gameboy.gameboyMode = mgb
     gameboy.message = ""
+    gameboy.intFlag = 0xE1
     # CPU Initialization
     gameboy.cpu.a = 0x01'u8
     gameboy.cpu.f = 0xb0'u8    # Flags only
@@ -24,7 +25,7 @@ proc powerOn(gameboy:var Gameboy) =
     # Timer Initilzation
     gameboy.timer.timaCounter = 0x00'u8
     gameboy.timer.timaModulo = 0x00'u8
-    gameboy.timer.tac = 0x00'u8
+    gameboy.timer.tac = 0xF8'u8
     gameboy.joypad = 0b0000_1111 # No buttons pressed on boot
     # PPU Initialization
     gameboy.ppu.lcdc = 0x91'u8
