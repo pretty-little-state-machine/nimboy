@@ -17,6 +17,7 @@
 import math
 import system
 import bitops
+import strutils
 import deques
 import types
 import interrupts
@@ -55,11 +56,11 @@ proc readByte*(ppu: Ppu; address: uint16): uint8 {.noSideEffect.} =
   # TODO Addressing based on BIT 4 of the LDCD register
   # TODO Pagination for gameboy color
   if address < 0x9800:
-    result = ppu.vRAMTileDataBank0[address - 0x8000]
+    return ppu.vRAMTileDataBank0[address - 0x8000]
   if address < 0x9C00:
-    result = ppu.vRAMBgMap1[address - 0x9800]
-  if address < 0x9FFF:
-    result = ppu.vRAMBgMap1[address - 0x9C00]
+    return ppu.vRAMBgMap1[address - 0x9800]
+  if address < 0xA000:
+    return ppu.vRAMBgMap1[address - 0x9C00]
 
 proc readOamYCoord(ppu: PPU; spriteIdx: uint8): uint8 =
   return ppu.oam[0x04 * spriteIdx]
