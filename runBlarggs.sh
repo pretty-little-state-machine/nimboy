@@ -1,5 +1,5 @@
 #!/bin/bash
-# echo "RUNNING BLARRG'S CPU INSTRUCTION EXECUTION TEST ROMS!"
+echo "RUNNING BLARRG'S CPU INSTRUCTION EXECUTION TEST ROMS!"
 # ./main --rom="roms/gb-test-roms/cpu_instrs/cpu_instrs.gb"
 # if [ $? -ne 0 ]
 # then
