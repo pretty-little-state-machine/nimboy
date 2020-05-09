@@ -18,6 +18,12 @@ proc dmaTransfer(gameboy:Gameboy): void =
   for address in countup(0'u16, 0x9F):
     gameboy.writeByte(0xFE00'u16 + address, gameboy.readByte(startingAddress + address))
 
+proc readJoypad(gameboy: Gameboy): uint8 =
+  if not gameboy.joypadRequest.testBit(4):    # Direction Keys
+    return gameboy.joypadRaw shr 4
+  elif not gameboy.joypadRequest.testBit(5):  # Buttons
+    return gameboy.joypadRaw
+
 proc readByte*(gameboy: Gameboy, address: uint16): uint8 =
   # 0x0000 -> 0x3FFF (Cartridge ROM Bank 00)
   # 0x4000 -> 0x7FFF (Cartridge Rom Bank 01 / Switched)
@@ -43,7 +49,7 @@ proc readByte*(gameboy: Gameboy, address: uint16): uint8 =
     return 0
   # Joypad
   if 0xFF00 == address:
-    return gameboy.joypad
+    return gameboy.readJoypad()
   # TIMER Registers
   if 0xFF04 == address:
     return gameboy.timer.readDiv()
@@ -109,7 +115,6 @@ proc readByte*(gameboy: Gameboy, address: uint16): uint8 =
     return gameboy.intEnable
 
 proc writeByte*(gameboy: Gameboy; address: uint16; value: uint8): void =
-
   # 0x0000 -> 0x3FFF (Cartridge ROM Bank 00)
   # 0x4000 -> 0x7FFF (Cartridge Rom Bank 01 / Switched)
   if address < 0x8000:
@@ -136,7 +141,7 @@ proc writeByte*(gameboy: Gameboy; address: uint16; value: uint8): void =
     discard
   # Joypad
   if 0xFF00 == address:
-    discard  # Joypad will have the proper value either way.
+    gameboy.joypadRequest = value
   # Serial IO
   if 0xFF01 == address:
     let c = char(value)

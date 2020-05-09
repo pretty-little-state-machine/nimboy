@@ -12,11 +12,12 @@ type
     internalRamBank0*: array[8*4096'u16, uint8] # Internal RAM ($C000-$CFFF)
     internalRamBank1*: array[8*4096'u16, uint8] # Internal RAM ($D000-$DFFF)
     highRam*: array[8*128'u16, uint8] # High RAM ($FF80-FFFE)
-    joypad*: uint8      # $FF00 - Joypad register
-    osc*: uint32        # Internal Oscillator - Master Clock - It's ok to overflow this
-    intFlag*: uint8     # Interrupt Flags - 0xFF0F
-    intEnable*: uint8   # Interrupt Enable Register - 0xFFFF
-    stopped*: bool      # STOP command affects other modules from CPU
+    joypadRaw*: uint8     # Raw input for Joypad - NOT the joypad register (it is calculated)
+    joypadRequest*: uint8 # Input for joypad register
+    osc*: uint32          # Internal Oscillator - Master Clock - It's ok to overflow this
+    intFlag*: uint8       # Interrupt Flags - 0xFF0F
+    intEnable*: uint8     # Interrupt Enable Register - 0xFFFF
+    stopped*: bool        # STOP command affects other modules from CPU
     message*: string
 
   GameboyMode* = enum

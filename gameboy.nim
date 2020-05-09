@@ -26,7 +26,7 @@ proc powerOn(gameboy:var Gameboy) =
     gameboy.timer.timaCounter = 0x00'u8
     gameboy.timer.timaModulo = 0x00'u8
     gameboy.timer.tac = 0xF8'u8
-    gameboy.joypad = 0b0000_1111 # No buttons pressed on boot
+    gameboy.joypadRaw = 0b1111_1111 # This is raw input data, NOT the joypad register
     # PPU Initialization
     gameboy.ppu.lcdc = 0x91'u8
     gameboy.ppu.scx = 0x00'u8
