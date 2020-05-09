@@ -2,6 +2,7 @@
 # SDL Rendering Module
 #
 import sdl2
+import sdl2/ttf
 import system
 import bitops
 import types
@@ -31,6 +32,8 @@ proc getRenderer*(title: string; width: cint; height: cint): (RendererPtr, Windo
   sdlFailIf(not setHint("SDL_RENDER_SCALE_QUALITY", "2")):
     "Linear texture filtering could not be enabled"
   #
+  sdlFailIf(not ttfInit()):
+    "SDL2 TTF Initialization Failed"
   let window = createWindow(title = title,
     x = SDL_WINDOWPOS_CENTERED, y = SDL_WINDOWPOS_CENTERED,
     w = width, h = height, flags = SDL_WINDOW_SHOWN)
@@ -80,6 +83,23 @@ proc fillTestTiles*(ppu: var PPU): void =
     for b in countup(0'u16, 0xF): 
        ppu.vRAMTileDataBank0[uint16(tileOffset) + b] = tmp[b]
 
+proc renderText(renderer: RendererPtr, text: string, x, y: cint, color: Color) =
+  let font = openFont("resources/DejaVuSans.ttf", 12)
+
+  let surface = font.renderUtf8Blended(text.cstring, color)
+  sdlFailIf surface.isNil: "Could not render text surface"
+  discard surface.setSurfaceAlphaMod(color.a)
+
+  var source = rect(0, 0, surface.w, surface.h)
+  var dest = rect(x, y, surface.w, surface.h)
+  let texture = renderer.createTextureFromSurface(surface)
+
+  sdlFailIf texture.isNil:
+    "Could not create texture from rendered text"
+  surface.freeSurface()
+  renderer.copyEx(texture, source, dest, angle = 0.0, center = nil, flip = SDL_FLIP_NONE)
+  texture.destroy()
+
 proc drawPixelEntry(renderer: RendererPtr; ppu: PPU; x: cint; y: cint; scale: cint): void = 
   # Draws a pixel with the appropriate color palette to the screen.
   let offset = (y * 160) + x
@@ -108,7 +128,14 @@ proc step*(renderer: RendererPtr; ppu: PPU; scale: cint): void =
     for x in countup(0, 159):
       renderer.drawPixelEntry(ppu, cint(x), cint(y), scale)
 
+proc renderOAM*(renderer: RendererPtr; ppu: PPU): void =
+  renderer.setDrawColor(0, 0, 0, 255);
+  renderer.clear()
+  renderer.renderText("Testing text output", 0, 0, color(255, 255, 255, 255))
+  renderer.present()
+
 proc renderTileMap*(renderer: RendererPtr; ppu: PPU): void =
+  renderer.clear()
   let palette = byteToMgbPalette(ppu.bgp)
   var
     xOffset = 0
@@ -127,6 +154,7 @@ proc renderTileMap*(renderer: RendererPtr; ppu: PPU): void =
     if 32 == xOffset:
       xOffset = 0
       yOffset += 8
+  renderer.present()
 
   # Overlay swatches (since the pixel data has been written once)
   renderer.drawSwatch(0, 192, 64, 32, palette[0])

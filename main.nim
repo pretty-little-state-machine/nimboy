@@ -1,4 +1,5 @@
 import sdl2
+import sdl2/ttf
 import times
 import os
 import strutils
@@ -12,8 +13,6 @@ import types
 import joypad
 import apu
 
-const tileDebuggerScale:cint = 1 # Output Scaling
-
 type
   Game = ref object
     inputs: array[Input, bool]
@@ -21,6 +20,11 @@ type
     renderer: RendererPtr
     gameboy: Gameboy
     scale: cint
+
+  Profiler = ref object
+    window: WindowPtr
+    renderer: RendererPtr
+    font: FontPtr
 
 proc newGame(renderer: RendererPtr; window: WindowPtr; gameboy: Gameboy): Game = 
   new result
@@ -38,9 +42,28 @@ proc render(game: Game): void =
   game.renderer.step(game.gameboy.ppu, game.scale)
   game.renderer.present()
 
+proc handleKeyDown(game: Game, input: Input): void =
+  if Input.quit == input:
+    quit("")
+  elif Input.scale1x == input:
+    game.window.setSize(160, 144)
+    game.scale = 1       
+  elif Input.scale2x == input:
+    game.window.setSize(160 * 2, 144 * 2)
+    game.scale = 2
+  elif Input.scale3x == input:
+    game.window.setSize(160 * 3, 144 * 3)
+    game.scale = 3
+  elif Input.scale4x == input:
+    game.window.setSize(160 * 4, 144 * 4)
+    game.scale = 4         
+  else:
+    game.gameboy.joypad = input.keyDown(game.gameboy.joypad)
+
 proc main(file: string = ""): void =
   let 
-    (tileMapRenderer, _) = getRenderer("Tile Data", 256 * tileDebuggerScale, 256 * tileDebuggerScale)
+    (oamRenderer, _) = getRenderer("OAM Sprites", 256, 256)
+    (tileMapRenderer, _) = getRenderer("Tile Data", 256, 256)
     (renderer, window) = getRenderer("Nimboy", 160, 144)
     
   # Game loop, draws each frame
@@ -84,22 +107,7 @@ proc main(file: string = ""): void =
       of QuitEvent:
         quit("")
       of KeyDown:
-        let input = evt.key.keysym.scancode.toInput
-        if Input.quit == input:
-          quit("")
-        elif Input.scale1x == input:
-          game.window.setSize(160, 144)
-          game.scale = 1       
-        elif Input.scale2x == input:
-          game.window.setSize(160 * 2, 144 * 2)
-          game.scale = 2
-        elif Input.scale3x == input:
-          game.window.setSize(160 * 3, 144 * 3)
-          game.scale = 3
-        elif Input.scale4x == input:
-          game.window.setSize(160 * 4, 144 * 4)
-          game.scale = 4         
-        game.gameboy.joypad = input.keyDown(game.gameboy.joypad)
+        game.handleKeyDown(evt.key.keysym.scancode.toInput)
       of KeyUp:
         let input = evt.key.keysym.scancode.toInput
         game.gameboy.joypad = input.keyUp(game.gameboy.joypad)
@@ -109,9 +117,8 @@ proc main(file: string = ""): void =
     # Only render when shifting from vSync to OAMMode
     if oamSearch == game.gameboy.ppu.mode and true == refresh:
       refresh = false
-      tileMapRenderer.clear()
+      oamRenderer.renderOAM(game.gameboy.ppu)
       tileMapRenderer.renderTilemap(game.gameboy.ppu)
-      tileMapRenderer.present()
       game.render()
       #echo "vBlank: ", (cpuTime() - vSyncTime) * 1000
       vSyncTime = cpuTime()
@@ -125,8 +132,8 @@ proc main(file: string = ""): void =
       #echo str
       quit("")
     else:
-      #discard
-      echo str
+      discard
+      #echo str
     #debug(game.gameboy, debugger)
     #limitFrameRate()
 
