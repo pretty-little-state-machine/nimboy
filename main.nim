@@ -23,6 +23,7 @@ type
     gameboy: Gameboy
     scale: cint
     showFrameTime: bool
+    showOpcodeDebug: bool
 
 proc newGame(renderer: RendererPtr; window: WindowPtr; font: FontPtr; gameboy: Gameboy): Game = 
   new result
@@ -32,6 +33,7 @@ proc newGame(renderer: RendererPtr; window: WindowPtr; font: FontPtr; gameboy: G
   result.font = font
   result.gameboy = gameboy
   result.showFrameTime = true
+  result.showOpcodeDebug = true
 
 proc limitFrameRate() =
   if (getTicks() < 30):
@@ -131,17 +133,22 @@ proc main(file: string = ""): void =
     if vBlank == game.gameboy.ppu.mode:
       refresh = true
 
-    discard game.gameboy.step()
-    #let str = game.gameboy.step().debugStr
-   # if str.contains("UNKNOWN OPCODE") or str.contains("BREAK!"):
-      #echo str
-      #quit("")
-   # else:
-     # discard
-      #echo str
+    if game.showOpcodeDebug:
+      let str = game.gameboy.step().debugStr
+      if str.contains("UNKNOWN OPCODE") or str.contains("BREAK!"):
+        echo str
+        quit("")
+      else:
+        echo str
+    else:
+      discard game.gameboy.step()
+
     #debug(game.gameboy, debugger)
     #limitFrameRate()
 
+#
+# CODE START
+#####################################
 for kind, key, value in getOpt():
   case kind
   of cmdLongOption, cmdShortOption:
