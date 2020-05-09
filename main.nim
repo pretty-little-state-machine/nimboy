@@ -24,6 +24,7 @@ type
     scale: cint
     showFrameTime: bool
     showOpcodeDebug: bool
+    showBGDebug: bool
 
 proc newGame(renderer: RendererPtr; window: WindowPtr; font: FontPtr; gameboy: Gameboy): Game = 
   new result
@@ -34,6 +35,7 @@ proc newGame(renderer: RendererPtr; window: WindowPtr; font: FontPtr; gameboy: G
   result.gameboy = gameboy
   result.showFrameTime = true
   result.showOpcodeDebug = true
+  result.showBGDebug = false
 
 proc limitFrameRate() =
   if (getTicks() < 30):
@@ -70,10 +72,9 @@ proc handleKeyDown(game: Game, input: Input): void =
     game.gameboy.joypad = input.keyDown(game.gameboy.joypad)
 
 proc main(file: string = ""): void =
-  let 
-    #(tileMapRenderer, _, _) = getRenderer("Tile Data", 256, 256)
-    (renderer, window, font) = getRenderer("Nimboy", 160, 144)
-    
+  let (renderer, window, font) = getRenderer("Nimboy", 160, 144)
+  let (tileMapRenderer, _, _) = getRenderer("Tile Data", 256, 256)
+
   # Game loop, draws each frame
   var 
     evt = sdl2.defaultEvent
@@ -82,6 +83,7 @@ proc main(file: string = ""): void =
     refresh: bool
     running: bool = true
     vSyncTime: float
+
 
   if "" == file:
     # Preload tetris
@@ -125,7 +127,8 @@ proc main(file: string = ""): void =
     # Only render when shifting from vSync to OAMMode
     if oamSearch == game.gameboy.ppu.mode and true == refresh:
       refresh = false
-      #tileMapRenderer.renderTilemap(game.gameboy.ppu)
+      if game.showBGDebug:
+        tileMapRenderer.renderTilemap(game.gameboy.ppu)
       game.render((epochTime() - vSyncTime) * 1000)
       vSyncTime = epochTime()
 
