@@ -107,11 +107,16 @@ proc resetFetch(fetch: var Fetch): void =
 
 proc tickFetch(ppu: var PPU; row: uint8): void =
   # Executes a fetch operation.
+
+  var bitToRead = 3 # Default to Background
+  if fWillFetchWindow == ppu.fetch.willFetch:
+    bitToRead = 6
+
   # TODO: Background scrolling support
   case ppu.fetch.mode
   of fmsReadTile:
     let offset:uint = floorDiv(ppu.fetch.tmpTileOffsetY, 8).uint * 32 + ppu.fetch.tmpTileoffsetX.uint
-    if (ppu.lcdc.testBit(3)):
+    if (ppu.lcdc.testBit(bitToRead)):
       ppu.fetch.tmpTileNum = ppu.vRAMBgMap2[offset]
     else:
       ppu.fetch.tmpTileNum = ppu.vRAMBgMap1[offset]
@@ -138,9 +143,16 @@ proc pixelTransferComplete(ppu: var PPU): void =
     ppu.lx = 0
     ppu.fifo.clear()
     ppu.fetch.tmpTileOffsetX = 0
+    ppu.fetch.willFetch = fWillFetchBackground
 
 proc tickPixelTransfer(ppu: var PPU): void = 
   # Handles the Pixel Transfer mode of the PPU
+
+  # Window enabled and xCoord hit? Reset fetch and start reading the window if we aren't already
+  if ppu.lcdc.testBit(5) and ppu.scx == ppu.lx and fWillFetchWindow != ppu.fetch.willFetch:
+    ppu.fetch.willFetch = fWillFetchWindow
+    ppu.fetch.resetFetch()
+
   # TODO Add sprite detection
   if ppu.fifo.len > 8:
     # Mix Pixels - Up to 10 cycles based on OAM Buffer
@@ -196,7 +208,6 @@ proc tick*(ppu: var PPU) =
     ppu.mode = oamSearch
     ppu.fetch.canRun = true
     ppu.fetch.tmpTileOffsetY = 0
-    #ppu.vBlankPrimed = true
   
   if oamSearch == ppu.mode:
     ppu.vBlankPrimed = true
@@ -214,7 +225,6 @@ proc tick*(ppu: var PPU) =
   # Override OAM Search if we hit VBlank
   if (144 == ppu.ly):
     ppu.mode = vBlank
-    #quit("")
 
   # Update vBlank interrupt and set primed to false so it doesn't keep
   # triggering continually during vBlank

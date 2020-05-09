@@ -1,4 +1,6 @@
 import sdl2
+import sdl2/ttf
+import strutils
 import times
 import os
 import strutils
@@ -12,41 +14,70 @@ import types
 import joypad
 import apu
 
-const tileDebuggerScale:cint = 1 # Output Scaling
-
 type
   Game = ref object
     inputs: array[Input, bool]
+    font: FontPtr
     window: WindowPtr
     renderer: RendererPtr
     gameboy: Gameboy
     scale: cint
+    showFrameTime: bool
+    showOpcodeDebug: bool
+    showBGDebug: bool
 
-proc newGame(renderer: RendererPtr; window: WindowPtr; gameboy: Gameboy): Game = 
+proc newGame(renderer: RendererPtr; window: WindowPtr; font: FontPtr; gameboy: Gameboy): Game = 
   new result
   result.scale = 1
   result.window = window
   result.renderer = renderer
+  result.font = font
   result.gameboy = gameboy
+  result.showFrameTime = true
+  result.showOpcodeDebug = true
 
 proc limitFrameRate() =
   if (getTicks() < 30):
     delay(30 - getTicks())
 
-proc render(game: Game): void =
+proc render(game: Game; frameTime: float): void =
   game.renderer.clear()
   game.renderer.step(game.gameboy.ppu, game.scale)
+  if game.showFrameTime:
+    if frameTime > 30:
+      game.renderer.renderText(game.font, frameTime.formatFloat(ffDecimal, 2), 0, 0, color(255, 128, 128, 255))
+    elif frameTime > 16.67:
+      game.renderer.renderText(game.font, frameTime.formatFloat(ffDecimal, 2), 0, 0, color(255, 255, 0, 255))
+    else:
+      game.renderer.renderText(game.font, frameTime.formatFloat(ffDecimal, 2), 0, 0, color(0, 255, 0, 255))
   game.renderer.present()
 
+proc handleKeyDown(game: Game, input: Input): void =
+  if Input.quit == input:
+    quit("")
+  elif Input.scale1x == input:
+    game.window.setSize(160, 144)
+    game.scale = 1       
+  elif Input.scale2x == input:
+    game.window.setSize(160 * 2, 144 * 2)
+    game.scale = 2
+  elif Input.scale3x == input:
+    game.window.setSize(160 * 3, 144 * 3)
+    game.scale = 3
+  elif Input.scale4x == input:
+    game.window.setSize(160 * 4, 144 * 4)
+    game.scale = 4         
+  else:
+    game.gameboy.joypad = input.keyDown(game.gameboy.joypad)
+
 proc main(file: string = ""): void =
-  let 
-    (tileMapRenderer, _) = getRenderer("Tile Data", 256 * tileDebuggerScale, 256 * tileDebuggerScale)
-    (renderer, window) = getRenderer("Nimboy", 160, 144)
-    
+  let (renderer, window, font) = getRenderer("Nimboy", 160, 144)
+  #let (tileMapRenderer, _, _) = getRenderer("Tile Data", 256, 256)
+
   # Game loop, draws each frame
   var 
     evt = sdl2.defaultEvent
-    game = newGame(renderer, window, newGameboy())
+    game = newGame(renderer, window, font, newGameboy())
     debugger = newDebugger()
     refresh: bool
     running: bool = true
@@ -84,22 +115,7 @@ proc main(file: string = ""): void =
       of QuitEvent:
         quit("")
       of KeyDown:
-        let input = evt.key.keysym.scancode.toInput
-        if Input.quit == input:
-          quit("")
-        elif Input.scale1x == input:
-          game.window.setSize(160, 144)
-          game.scale = 1       
-        elif Input.scale2x == input:
-          game.window.setSize(160 * 2, 144 * 2)
-          game.scale = 2
-        elif Input.scale3x == input:
-          game.window.setSize(160 * 3, 144 * 3)
-          game.scale = 3
-        elif Input.scale4x == input:
-          game.window.setSize(160 * 4, 144 * 4)
-          game.scale = 4         
-        game.gameboy.joypad = input.keyDown(game.gameboy.joypad)
+        game.handleKeyDown(evt.key.keysym.scancode.toInput)
       of KeyUp:
         let input = evt.key.keysym.scancode.toInput
         game.gameboy.joypad = input.keyUp(game.gameboy.joypad)
@@ -109,28 +125,30 @@ proc main(file: string = ""): void =
     # Only render when shifting from vSync to OAMMode
     if oamSearch == game.gameboy.ppu.mode and true == refresh:
       refresh = false
-      tileMapRenderer.clear()
-      tileMapRenderer.renderTilemap(game.gameboy.ppu)
-      tileMapRenderer.present()
-      game.render()
-      #echo "vBlank: ", (cpuTime() - vSyncTime) * 1000
-      vSyncTime = cpuTime()
+      #tileMapRenderer.renderTilemap(game.gameboy.ppu)
+      game.render((epochTime() - vSyncTime) * 1000)
+      vSyncTime = epochTime()
 
     # Set next OAM to fire off a redraw
     if vBlank == game.gameboy.ppu.mode:
       refresh = true
 
-    let str = game.gameboy.step().debugStr
-    if str.contains("UNKNOWN OPCODE"): #or 
-      #str.contains("BREAK!"):
-      #echo str
-      quit("")
+    if game.showOpcodeDebug:
+      let str = game.gameboy.step().debugStr
+      if str.contains("UNKNOWN OPCODE") or str.contains("BREAK!"):
+        echo str
+        quit("")
+      else:
+        echo str
     else:
-      discard
-      #echo str
+      discard game.gameboy.step()
+
     #debug(game.gameboy, debugger)
     #limitFrameRate()
 
+#
+# CODE START
+#####################################
 for kind, key, value in getOpt():
   case kind
   of cmdLongOption, cmdShortOption:

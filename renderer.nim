@@ -2,6 +2,7 @@
 # SDL Rendering Module
 #
 import sdl2
+import sdl2/ttf
 import system
 import bitops
 import types
@@ -24,13 +25,15 @@ template sdlFailIf(cond: typed, reason: string) =
   if cond: raise SDLException.newException(
     reason & ", SDL error: " & $getError())
 
-proc getRenderer*(title: string; width: cint; height: cint): (RendererPtr, WindowPtr) =
+proc getRenderer*(title: string; width: cint; height: cint): (RendererPtr, WindowPtr, FontPtr) =
   sdlFailIf(not sdl2.init(INIT_VIDEO or INIT_TIMER or INIT_EVENTS)):
     "SDL2 initialization failed"
   #
   sdlFailIf(not setHint("SDL_RENDER_SCALE_QUALITY", "2")):
     "Linear texture filtering could not be enabled"
   #
+  sdlFailIf(not ttfInit()):
+    "SDL2 TTF Initialization Failed"
   let window = createWindow(title = title,
     x = SDL_WINDOWPOS_CENTERED, y = SDL_WINDOWPOS_CENTERED,
     w = width, h = height, flags = SDL_WINDOW_SHOWN)
@@ -41,7 +44,9 @@ proc getRenderer*(title: string; width: cint; height: cint): (RendererPtr, Windo
   sdlFailIf renderer.isNil: "Renderer could not be created"
   #
   renderer.setDrawColor(r = 255, g = 255, b = 255)
-  return (renderer, window)
+  # Load Font Pointer
+  let font = openFont("resources/DejaVuSans.ttf", 12)
+  return (renderer, window, font)
 
 proc decodeMgbColor(colorNumber: uint8): PpuColor =
   # A nice set of psuedo-green colours for Monochrome Gameboy. Any invalid 
@@ -80,6 +85,25 @@ proc fillTestTiles*(ppu: var PPU): void =
     for b in countup(0'u16, 0xF): 
        ppu.vRAMTileDataBank0[uint16(tileOffset) + b] = tmp[b]
 
+proc renderText*(renderer: RendererPtr, font: FontPtr, text: string, x, y: cint, color: Color) =
+  for i in countup(0, 64):
+    for j in countup(0, 16):
+      renderer.setDrawColor(0, 0, 0)
+      renderer.drawPoint(cint(i), cint(j))
+  let surface = font.renderUtf8Blended(text.cstring, color)
+  sdlFailIf surface.isNil: "Could not render text surface"
+  discard surface.setSurfaceAlphaMod(color.a)
+
+  var source = rect(0, 0, surface.w, surface.h)
+  var dest = rect(x, y, surface.w, surface.h)
+  let texture = renderer.createTextureFromSurface(surface)
+
+  sdlFailIf texture.isNil:
+    "Could not create texture from rendered text"
+  surface.freeSurface()
+  renderer.copyEx(texture, source, dest, angle = 0.0, center = nil, flip = SDL_FLIP_NONE)
+  texture.destroy()
+  
 proc drawPixelEntry(renderer: RendererPtr; ppu: PPU; x: cint; y: cint; scale: cint): void = 
   # Draws a pixel with the appropriate color palette to the screen.
   let offset = (y * 160) + x
@@ -109,6 +133,7 @@ proc step*(renderer: RendererPtr; ppu: PPU; scale: cint): void =
       renderer.drawPixelEntry(ppu, cint(x), cint(y), scale)
 
 proc renderTileMap*(renderer: RendererPtr; ppu: PPU): void =
+  renderer.clear()
   let palette = byteToMgbPalette(ppu.bgp)
   var
     xOffset = 0
@@ -127,6 +152,7 @@ proc renderTileMap*(renderer: RendererPtr; ppu: PPU): void =
     if 32 == xOffset:
       xOffset = 0
       yOffset += 8
+  renderer.present()
 
   # Overlay swatches (since the pixel data has been written once)
   renderer.drawSwatch(0, 192, 64, 32, palette[0])

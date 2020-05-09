@@ -4,3 +4,4 @@ main
 .idea
 *.exe
 roms/
+*.out.*
