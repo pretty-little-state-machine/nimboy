@@ -25,7 +25,7 @@ template sdlFailIf(cond: typed, reason: string) =
   if cond: raise SDLException.newException(
     reason & ", SDL error: " & $getError())
 
-proc getRenderer*(title: string; width: cint; height: cint): (RendererPtr, WindowPtr) =
+proc getRenderer*(title: string; width: cint; height: cint): (RendererPtr, WindowPtr, FontPtr) =
   sdlFailIf(not sdl2.init(INIT_VIDEO or INIT_TIMER or INIT_EVENTS)):
     "SDL2 initialization failed"
   #
@@ -44,7 +44,9 @@ proc getRenderer*(title: string; width: cint; height: cint): (RendererPtr, Windo
   sdlFailIf renderer.isNil: "Renderer could not be created"
   #
   renderer.setDrawColor(r = 255, g = 255, b = 255)
-  return (renderer, window)
+  # Load Font Pointer
+  let font = openFont("resources/DejaVuSans.ttf", 12)
+  return (renderer, window, font)
 
 proc decodeMgbColor(colorNumber: uint8): PpuColor =
   # A nice set of psuedo-green colours for Monochrome Gameboy. Any invalid 
@@ -83,9 +85,11 @@ proc fillTestTiles*(ppu: var PPU): void =
     for b in countup(0'u16, 0xF): 
        ppu.vRAMTileDataBank0[uint16(tileOffset) + b] = tmp[b]
 
-proc renderText(renderer: RendererPtr, text: string, x, y: cint, color: Color) =
-  let font = openFont("resources/DejaVuSans.ttf", 12)
-
+proc renderText*(renderer: RendererPtr, font: FontPtr, text: string, x, y: cint, color: Color) =
+  for i in countup(0, 64):
+    for j in countup(0, 16):
+      renderer.setDrawColor(0, 0, 0)
+      renderer.drawPoint(cint(i), cint(j))
   let surface = font.renderUtf8Blended(text.cstring, color)
   sdlFailIf surface.isNil: "Could not render text surface"
   discard surface.setSurfaceAlphaMod(color.a)
@@ -99,7 +103,7 @@ proc renderText(renderer: RendererPtr, text: string, x, y: cint, color: Color) =
   surface.freeSurface()
   renderer.copyEx(texture, source, dest, angle = 0.0, center = nil, flip = SDL_FLIP_NONE)
   texture.destroy()
-
+  
 proc drawPixelEntry(renderer: RendererPtr; ppu: PPU; x: cint; y: cint; scale: cint): void = 
   # Draws a pixel with the appropriate color palette to the screen.
   let offset = (y * 160) + x
@@ -127,12 +131,6 @@ proc step*(renderer: RendererPtr; ppu: PPU; scale: cint): void =
   for y in countup(0, 143):
     for x in countup(0, 159):
       renderer.drawPixelEntry(ppu, cint(x), cint(y), scale)
-
-proc renderOAM*(renderer: RendererPtr; ppu: PPU): void =
-  renderer.setDrawColor(0, 0, 0, 255);
-  renderer.clear()
-  renderer.renderText("Testing text output", 0, 0, color(255, 255, 255, 255))
-  renderer.present()
 
 proc renderTileMap*(renderer: RendererPtr; ppu: PPU): void =
   renderer.clear()

@@ -1,5 +1,6 @@
 import sdl2
 import sdl2/ttf
+import strutils
 import times
 import os
 import strutils
@@ -16,30 +17,36 @@ import apu
 type
   Game = ref object
     inputs: array[Input, bool]
+    font: FontPtr
     window: WindowPtr
     renderer: RendererPtr
     gameboy: Gameboy
     scale: cint
+    showFrameTime: bool
 
-  Profiler = ref object
-    window: WindowPtr
-    renderer: RendererPtr
-    font: FontPtr
-
-proc newGame(renderer: RendererPtr; window: WindowPtr; gameboy: Gameboy): Game = 
+proc newGame(renderer: RendererPtr; window: WindowPtr; font: FontPtr; gameboy: Gameboy): Game = 
   new result
   result.scale = 1
   result.window = window
   result.renderer = renderer
+  result.font = font
   result.gameboy = gameboy
+  result.showFrameTime = true
 
 proc limitFrameRate() =
   if (getTicks() < 30):
     delay(30 - getTicks())
 
-proc render(game: Game): void =
+proc render(game: Game; frameTime: float): void =
   game.renderer.clear()
   game.renderer.step(game.gameboy.ppu, game.scale)
+  if game.showFrameTime:
+    if frameTime > 30:
+      game.renderer.renderText(game.font, frameTime.formatFloat(ffDecimal, 2), 0, 0, color(255, 128, 128, 255))
+    elif frameTime > 16.67:
+      game.renderer.renderText(game.font, frameTime.formatFloat(ffDecimal, 2), 0, 0, color(255, 255, 0, 255))
+    else:
+      game.renderer.renderText(game.font, frameTime.formatFloat(ffDecimal, 2), 0, 0, color(0, 255, 0, 255))
   game.renderer.present()
 
 proc handleKeyDown(game: Game, input: Input): void =
@@ -62,14 +69,13 @@ proc handleKeyDown(game: Game, input: Input): void =
 
 proc main(file: string = ""): void =
   let 
-    (oamRenderer, _) = getRenderer("OAM Sprites", 256, 256)
-    (tileMapRenderer, _) = getRenderer("Tile Data", 256, 256)
-    (renderer, window) = getRenderer("Nimboy", 160, 144)
+    #(tileMapRenderer, _, _) = getRenderer("Tile Data", 256, 256)
+    (renderer, window, font) = getRenderer("Nimboy", 160, 144)
     
   # Game loop, draws each frame
   var 
     evt = sdl2.defaultEvent
-    game = newGame(renderer, window, newGameboy())
+    game = newGame(renderer, window, font, newGameboy())
     debugger = newDebugger()
     refresh: bool
     running: bool = true
@@ -117,22 +123,21 @@ proc main(file: string = ""): void =
     # Only render when shifting from vSync to OAMMode
     if oamSearch == game.gameboy.ppu.mode and true == refresh:
       refresh = false
-      oamRenderer.renderOAM(game.gameboy.ppu)
-      tileMapRenderer.renderTilemap(game.gameboy.ppu)
-      game.render()
-      #echo "vBlank: ", (cpuTime() - vSyncTime) * 1000
-      vSyncTime = cpuTime()
+      #tileMapRenderer.renderTilemap(game.gameboy.ppu)
+      game.render((epochTime() - vSyncTime) * 1000)
+      vSyncTime = epochTime()
 
     # Set next OAM to fire off a redraw
     if vBlank == game.gameboy.ppu.mode:
       refresh = true
 
-    let str = game.gameboy.step().debugStr
-    if str.contains("UNKNOWN OPCODE") or str.contains("BREAK!"):
+    discard game.gameboy.step()
+    #let str = game.gameboy.step().debugStr
+   # if str.contains("UNKNOWN OPCODE") or str.contains("BREAK!"):
       #echo str
-      quit("")
-    else:
-      discard
+      #quit("")
+   # else:
+     # discard
       #echo str
     #debug(game.gameboy, debugger)
     #limitFrameRate()
