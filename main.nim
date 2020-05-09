@@ -34,7 +34,7 @@ proc newGame(renderer: RendererPtr; window: WindowPtr; font: FontPtr; gameboy: G
   result.font = font
   result.gameboy = gameboy
   result.showFrameTime = true
-  result.showOpcodeDebug = true
+  result.showOpcodeDebug = false
 
 proc limitFrameRate() =
   if (getTicks() < 30):
@@ -109,6 +109,10 @@ proc main(file: string = ""): void =
     game.gameboy.cartridge.loadRomFile(file)
   #sleep (3000)
   # game.gameboy.ppu.fillTestTiles()
+
+  # Print some info about the ROM that was loaded
+  #echo getRomDetailStr(game.gameboy.cartridge)
+
   while running:
     while pollEvent(evt):
       case evt.kind:
