@@ -58,12 +58,13 @@ type
 
   Cartridge* = object
     loaded*: bool
+    ramEnabled*: bool
     fixedROM*: array[16*1024'u16, uint8]        # 16KB of Fixed ROM Bank 0 ($0000-$3FFF)
     internalROM*: array[128*16*1024'u32, uint8] # 2MB Max rom size - MBC3 (128 Banks of 16K)
     internalRAM*: array[4*8*1024'u16, uint8]    # 32KB Max RAM size - MBC3 (4 banks of 8K)
-    romPage*: uint16
-    ramPage*: uint16
-    writeEnabeld*: bool
+    mbc1RomBankSelect*: uint8      # The lower five bits of the ROM bank number (MBC1)
+    mbc1RamRomBankSelect*: uint8   # The RAM bank to select _or_ the upper bits of ROM to select 
+    mbc1RomRamModeRegister*: uint8 # Determines the purpose of ramRomBankSelect (00 == ROM, 01 == RAM)
 
   PPU* = object
     gb*: PPUGb

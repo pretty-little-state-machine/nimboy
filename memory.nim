@@ -16,7 +16,7 @@ proc dmaTransfer(gameboy:Gameboy): void =
   # TODO: This does NOT wait for 160 cycles to finish at this time
   let startingAddress = (gameboy.readbyte(0xFF46).uint16 shl 8)
   for address in countup(0'u16, 0x9F):
-    gameboy.writeByte(0xFE00'u16 + address, gameboy.readByte(startingAddress))
+    gameboy.writeByte(0xFE00'u16 + address, gameboy.readByte(startingAddress + address))
 
 proc readByte*(gameboy: Gameboy, address: uint16): uint8 =
   # 0x0000 -> 0x3FFF (Cartridge ROM Bank 00)

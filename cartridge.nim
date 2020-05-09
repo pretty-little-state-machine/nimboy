@@ -1,42 +1,169 @@
 import algorithm
 import streams
+import strutils
+import bitops
 import os
 import types
 import nimboyutils
 
-proc readByte*(cartridge: Cartridge; address: uint16): uint8 {.noSideEffect.} =
-  # Reads a byte from the cartridge with paging. 
-  # Valid address requests directed to this proc:
-  #
-  # $0000 - $3FFF - 16K Fixed ROM
-  # $4000 - $7FFF - 16K Paged ROM
-  # $A000 - $BFFF -  8K Paged RAM 
-  if address < 0x4000:
-    return cartridge.fixedROM[address]
-  elif address < 0x8000:
-    let offset = (cartridge.romPage * 8192) + address - 0x4000
-    return cartridge.internalROM[offset]
+
+
+proc isMBC1(cartridge: Cartridge): bool =
+  case (cartridge.fixedROM[0x0147]):
+  of 0x01: true
+  of 0x02: true
+  of 0x03: true
   else:
-    let offset = (cartridge.ramPage * 8192) + address - 0xA000
-    return cartridge.internalRAM[offset]
+    false
+
+proc isMBC2(cartridge: Cartridge): bool =
+  case (cartridge.fixedROM[0x0147]):
+  of 0x05: true
+  of 0x06: true
+  else:
+    false
+
+proc isMBC3(cartridge: Cartridge): bool =
+  case (cartridge.fixedROM[0x0147]):
+  of 0x0F: true
+  of 0x10: true
+  of 0x11: true
+  of 0x12: true
+  of 0x13: true  
+  else:
+    false
+
+proc isMBC5(cartridge: Cartridge): bool =
+  case (cartridge.fixedROM[0x0147]):
+  of 0x19: true
+  of 0x1A: true
+  of 0x1B: true
+  of 0x1C: true
+  of 0x1D: true
+  of 0x1E: true      
+  else:
+    false
+
+proc writeByteMBC1(cartridge: var Cartridge; address: uint16; value: uint8): void =
+  # Handles MBC 1 paging behavior
+  # Valid write locations range from 0x0000 -> 0xBFFF 
+  # RAM Enable
+  if address < 0x2000:
+    # Pretty much any value with the lower four bits set to 0x0A will enable RAM
+    if 0x0A00 == (value shl 4):
+      cartridge.ramEnabled = true
+    else:
+      cartridge.ramEnabled = false
+  # This register stores the lower 5 bits of what ROM page to use.
+  elif address < 0x4000:
+    let lower5bits = bitand(value, 0b0001_1111)
+    case (lower5bits):
+    of 0x00:
+      cartridge.mbc1RomBankSelect = 0x01
+    of 0x20:
+      cartridge.mbc1RomBankSelect = 0x21
+    of 0x40:
+      cartridge.mbc1RomBankSelect = 0x41
+    of 0x60:
+      cartridge.mbc1RomBankSelect = 0x61
+    else:
+      cartridge.mbc1RomBankSelect = lower5bits
+  # This register stores the RAM bank number OR the ROM bank upper 2 bits
+  elif address < 0x6000:
+    cartridge.mbc1RamRomBankSelect = bitand(value, 0b0000_0011)
+  # This register stores the _behavior_ of the register above this one (RAM or ROM mode)
+  elif address < 0x8000:
+    cartridge.mbc1RomRamModeRegister = bitand(value, 0b0000_0001)
+  # Not a valid ROM write register
+  elif address < 0xA000:
+    discard
+  # RAM Page
+  elif address < 0xC000:
+    # RAM paging mode must be set to write to _any_ RAM page
+    if 0x01 == cartridge.mbc1RomRamModeRegister:
+      cartridge.internalRAM[uint16(cartridge.mbc1RamRomBankSelect * 16384) + (address - 0xA000)] = value
+    else:
+      discard
+  else:
+    discard
+
+proc writeByteMBC2(cartridge: var Cartridge; address: uint16; value: uint8): void =
+  # TODO: Handles MBC 2 paging behavior
+  discard
+
+proc writeByteMBC3(cartridge: var Cartridge; address: uint16; value: uint8): void =
+  # TODO: Handles MBC 3 paging behavior
+  discard
+
+proc writeByteMBC5(cartridge: var Cartridge; address: uint16; value: uint8): void =
+  # TODO: Handles MBC 5 paging behavior
+  discard
 
 proc writeByte*(cartridge: var Cartridge; address: uint16; value: uint8): void =
-  # Writes a byte from to cartridge with paging. 
-  # Valid address requests directed to this proc:
-  #
-  # $0000 - $3FFF - 16K Fixed ROM
-  # $4000 - $7FFF - 16K Paged ROM
-  # $A000 - $BFFF -  8K Paged RAM
-  #
-  # TODO: Handle the million MBC models and pagination and all sorts of stuff!
-  if address < 0x4000:
-    cartridge.fixedROM[address] = value
-  if address < 0x8000:
-    let offset = (cartridge.romPage * 8192) + address - 0x4000
-    cartridge.internalROM[offset] = value
+  # Writes a byte from to cartridge with paging depending on the MBC (if present)
+  if isMBC1(cartridge):
+    writeByteMBC1(cartridge, address, value)
+  elif isMBC2(cartridge):
+    writeByteMBC2(cartridge, address, value)    
+  elif isMBC3(cartridge):
+    writeByteMBC3(cartridge, address, value)
+  elif isMBC5(cartridge):
+    writeByteMBC5(cartridge, address, value)   
   else:
-    let offset = (cartridge.ramPage * 8192) + address - 0xA000
-    cartridge.internalRAM[offset] = value
+    # No MBC? No problem! Only RAM address range writes are allowed
+    if address > 0x7FFF:
+      cartridge.internalRAM[address - 0xA000] = value
+
+proc readByteMBC1*(cartridge: Cartridge; address: uint16): uint8 {.noSideEffect.} =
+  # ROM Page 0 - Always present
+  if address < 0x4000:
+    return cartridge.fixedROM[address]
+  # Paged ROM
+  elif address < 0x8000 and 0x00 == cartridge.mbc1RomRamModeRegister:
+    # Bank number is deprecated since since ROM reading stream starts at index 0
+    let 
+      bankNumber = bitor((cartridge.mbc1RamRomBankSelect shl 4), cartridge.mbc1RomBankSelect) - 1 
+      offset = uint16(bankNumber * 16384 + (address - 0x4000))
+    return cartridge.internalROM[offset]
+  # RAM Pages
+  elif address < 0xC000 and 0x01 == cartridge.mbc1RomRamModeRegister:
+    let 
+      bankNumber = cartridge.mbc1RamRomBankSelect
+      offset = uint16(bankNumber * 16384 + (address - 0xA000))
+    return cartridge.internalRAM[offset]
+  # Inavlid read attempts. Return 0
+  else:
+    return 0
+
+proc readByteMBC2*(cartridge: Cartridge; address: uint16): uint8 {.noSideEffect.} =
+  # TODO: Returns a read from an MBC5 cartridge
+  return 0
+proc readByteMBC3*(cartridge: Cartridge; address: uint16): uint8 {.noSideEffect.} =
+  # TODO: Returns a read from an MBC5 cartridge
+  return 0
+proc readByteMBC5*(cartridge: Cartridge; address: uint16): uint8 {.noSideEffect.} =
+  # TODO: Returns a read from an MBC5 cartridge
+  return 0
+
+proc readByte*(cartridge: Cartridge; address: uint16): uint8 {.noSideEffect.} =
+  # Reads a byte from the cartridge with paging on the appropriate MBC (if present)
+  if address < 0x4000:
+    return cartridge.fixedROM[address]
+  # Writes a byte from to cartridge with paging depending on the MBC
+  if isMBC1(cartridge):
+     return readByteMBC1(cartridge, address)
+  elif isMBC2(cartridge):
+    return readByteMBC2(cartridge, address)    
+  elif isMBC3(cartridge):
+    return readByteMBC3(cartridge, address)
+  elif isMBC5(cartridge):
+    return readByteMBC5(cartridge, address)   
+  else:
+    # No MBC? No problem! Have the built-in RAM and ROM (if it's even there)
+    if address < 0x8000:
+      return cartridge.internalROM[address - 0x4000]
+    else:
+      return cartridge.internalRAM[address - 0xA000]
 
 proc loadRomFile*(cartridge: var Cartridge; path: string) = 
   # Loads a ROM file into the internal ROM.
