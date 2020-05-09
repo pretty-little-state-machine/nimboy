@@ -62,7 +62,12 @@ proc main(file: string = ""): void =
     # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/cpu_instrs/individual/10-bit ops.gb")
     # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/cpu_instrs/individual/11-op a,(hl).gb")
     # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/cpu_instrs/cpu_instrs.gb")
-    game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/instr_timing/instr_timing.gb")
+    # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/instr_timing/instr_timing.gb")
+    # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/mem_timing/mem_timing.gb")
+    # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/mem_timing/individual/01-read_timing.gb")
+    # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/mem_timing/individual/02-write_timing.gb")
+    game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/mem_timing/individual/03-modify_timing.gb")
+    # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/interrupt_time/interrupt_time.gb")
   else:
     game.gameboy.cartridge.loadRomFile(file)
   #sleep (3000)
