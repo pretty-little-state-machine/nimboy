@@ -17,11 +17,15 @@ const tileDebuggerScale:cint = 1 # Output Scaling
 type
   Game = ref object
     inputs: array[Input, bool]
+    window: WindowPtr
     renderer: RendererPtr
     gameboy: Gameboy
+    scale: cint
 
-proc newGame(renderer: RendererPtr; gameboy: Gameboy): Game = 
+proc newGame(renderer: RendererPtr; window: WindowPtr; gameboy: Gameboy): Game = 
   new result
+  result.scale = 1
+  result.window = window
   result.renderer = renderer
   result.gameboy = gameboy
 
@@ -31,16 +35,18 @@ proc limitFrameRate() =
 
 proc render(game: Game): void =
   game.renderer.clear()
-  game.renderer.step(game.gameboy.ppu)
+  game.renderer.step(game.gameboy.ppu, game.scale)
   game.renderer.present()
 
 proc main(file: string = ""): void =
-  let tileMapRenderer = getRenderer("Tile Data", 256 * tileDebuggerScale, 256 * tileDebuggerScale)
-
+  let 
+    (tileMapRenderer, _) = getRenderer("Tile Data", 256 * tileDebuggerScale, 256 * tileDebuggerScale)
+    (renderer, window) = getRenderer("Nimboy", 160, 144)
+    
   # Game loop, draws each frame
   var 
     evt = sdl2.defaultEvent
-    game = newGame(getRenderer("Nimboy", 160, 144), newGameboy())
+    game = newGame(renderer, window, newGameboy())
     debugger = newDebugger()
     refresh: bool
     running: bool = true
@@ -48,7 +54,7 @@ proc main(file: string = ""): void =
 
   if "" == file:
     # Preload tetris
-    # game.gameboy.cartridge.loadRomFile("roms/tetris.gb")
+    game.gameboy.cartridge.loadRomFile("roms/tetris.gb")
     # Blargg's CPU Roms
     # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/cpu_instrs/individual/01-special.gb")
     # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/cpu_instrs/individual/02-interrupts.gb")
@@ -65,9 +71,9 @@ proc main(file: string = ""): void =
     # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/instr_timing/instr_timing.gb")
     # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/mem_timing/mem_timing.gb")
     # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/mem_timing/individual/01-read_timing.gb")
-    # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/mem_timing/individual/02-write_timing.gb")
     game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/mem_timing/individual/03-modify_timing.gb")
     # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/interrupt_time/interrupt_time.gb")
+    # game.gameboy.cartridge.loadRomFile("roms/gb-test-roms/mem_timing/individual/02-write_timing.gb")
   else:
     game.gameboy.cartridge.loadRomFile(file)
   #sleep (3000)
@@ -81,6 +87,18 @@ proc main(file: string = ""): void =
         let input = evt.key.keysym.scancode.toInput
         if Input.quit == input:
           quit("")
+        elif Input.scale1x == input:
+          game.window.setSize(160, 144)
+          game.scale = 1       
+        elif Input.scale2x == input:
+          game.window.setSize(160 * 2, 144 * 2)
+          game.scale = 2
+        elif Input.scale3x == input:
+          game.window.setSize(160 * 3, 144 * 3)
+          game.scale = 3
+        elif Input.scale4x == input:
+          game.window.setSize(160 * 4, 144 * 4)
+          game.scale = 4         
         game.gameboy.joypad = input.keyDown(game.gameboy.joypad)
       of KeyUp:
         let input = evt.key.keysym.scancode.toInput
@@ -112,7 +130,6 @@ proc main(file: string = ""): void =
       #echo str
     #debug(game.gameboy, debugger)
     #limitFrameRate()
-
 
 for kind, key, value in getOpt():
   case kind

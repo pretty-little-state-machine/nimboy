@@ -5,10 +5,14 @@ import bitops
 import sdl2
 
 type
-  Input* {.pure.} = enum none, quit, up, down, left, right, select, start, a, b
+  Input* {.pure.} = enum none, scale1x, scale2x, scale3x, scale4x, quit, up, down, left, right, select, start, a, b
 
 proc toInput*(key: Scancode): Input = 
   case key:
+  of SDL_SCANCODE_1: Input.scale1x  
+  of SDL_SCANCODE_2: Input.scale2x
+  of SDL_SCANCODE_3: Input.scale3x
+  of SDL_SCANCODE_4: Input.scale4x
   of SDL_SCANCODE_Q: Input.quit
   of SDL_SCANCODE_W: Input.up
   of SDL_SCANCODE_A: Input.left

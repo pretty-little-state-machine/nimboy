@@ -5,6 +5,7 @@ import types
 import memory
 import nimboyutils
 import interrupts
+import timer
 
 type
   TickResult* = object
@@ -24,6 +25,10 @@ proc setLsb(word: var uint16; byte: uint8): uint16 =
   word.clearMask(0x00FF)
   word.setMask(byte)
   return word
+
+proc tickTimer(cpu: CPU; count: int): void =
+  for x in countup(1, count):
+    cpu.mem.gameboy.timer.tick()
 
 proc readWord(cpu: CPU; address: uint16): uint16 =
   var word: uint16
@@ -777,6 +782,7 @@ proc execute_cb (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 2
     result.debugStr = "BIT 0, L"
   of 0x46:
+    cpu.tickTimer(4)    
     var value = cpu.mem.gameboy.readByte(cpu.hl)
     cpu.doBitTest(value, 0)
     cpu.pc += 2
@@ -826,6 +832,7 @@ proc execute_cb (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 2
     result.debugStr = "BIT 1, L"
   of 0x4E:
+    cpu.tickTimer(4)    
     var value = cpu.mem.gameboy.readByte(cpu.hl)
     cpu.doBitTest(value, 1)
     cpu.pc += 2
@@ -875,6 +882,7 @@ proc execute_cb (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 2
     result.debugStr = "BIT 2, L"
   of 0x56:
+    cpu.tickTimer(4)    
     var value = cpu.mem.gameboy.readByte(cpu.hl)
     cpu.doBitTest(value, 2)
     cpu.pc += 2
@@ -924,6 +932,7 @@ proc execute_cb (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 2
     result.debugStr = "BIT 3, L"
   of 0x5E:
+    cpu.tickTimer(4)
     var value = cpu.mem.gameboy.readByte(cpu.hl)
     cpu.doBitTest(value, 3)
     cpu.pc += 2
@@ -973,6 +982,7 @@ proc execute_cb (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 2
     result.debugStr = "BIT 4, L"
   of 0x66:
+    cpu.tickTimer(4)
     var value = cpu.mem.gameboy.readByte(cpu.hl)
     cpu.doBitTest(value, 4)
     cpu.pc += 2
@@ -1022,6 +1032,7 @@ proc execute_cb (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 2
     result.debugStr = "BIT 5, L"
   of 0x6E:
+    cpu.tickTimer(4)
     var value = cpu.mem.gameboy.readByte(cpu.hl)
     cpu.doBitTest(value, 5)
     cpu.pc += 2
@@ -1071,6 +1082,7 @@ proc execute_cb (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 2
     result.debugStr = "BIT 6, L"
   of 0x76:
+    cpu.tickTimer(4)
     var value = cpu.mem.gameboy.readByte(cpu.hl)
     cpu.doBitTest(value, 6)
     cpu.pc += 2
@@ -1120,6 +1132,7 @@ proc execute_cb (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 2
     result.debugStr = "BIT 7, L"
   of 0x7E:
+    cpu.tickTimer(4)
     var value = cpu.mem.gameboy.readByte(cpu.hl)
     cpu.doBitTest(value, 7)
     cpu.pc += 2
@@ -2430,6 +2443,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 4
     result.debugStr = "DEC (HL) " & $toHex(cpu.hl)
   of 0x36:
+    cpu.tickTimer(4)  
     let byte =  cpu.mem.gameboy.readByte(cpu.pc + 1)
     cpu.mem.gameboy.writeByte(cpu.hl, byte)
     cpu.pc += 2
@@ -3551,6 +3565,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 4
     result.debugStr = "RST 18"
   of 0xE0:
+    cpu.tickTimer(4)    
     var word = 0xFF00'u16
     word = bitOr(word, uint16(cpu.mem.gameboy.readbyte(cpu.pc + 1)))
     cpu.mem.gameboy.writeByte(word, cpu.a)
@@ -3609,6 +3624,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 1
     result.debugStr = "JP HL  (" & $toHex(cpu.hl) & ")"
   of 0xEA:
+    cpu.tickTimer(8)
     var word: uint16
     word = cpu.readWord(cpu.pc+1)
     cpu.mem.gameboy.writeByte(word, cpu.a)
@@ -3633,9 +3649,10 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 4
     result.debugStr = "RST 28"
   of 0xF0:
+    cpu.tickTimer(4)    
     var word = 0xFF00'u16
     word = bitOr(word, uint16(cpu.mem.gameboy.readbyte(cpu.pc + 1)))
-    let byte = cpu.mem.gameboy.readByte(word)
+    let byte = cpu.mem.gameboy.readbyte(word)
     cpu.a = byte
     cpu.pc += 2
     result.tClock = 12
@@ -3700,9 +3717,10 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 2
     result.debugStr = "LD SP, HL"
   of 0xFA:
+    cpu.tickTimer(8)   
     var word: uint16
     word = cpu.readWord(cpu.pc + 1)
-    cpu.a = cpu.mem.gameboy.readByte(word)
+    cpu.a = cpu.mem.gameboy.readbyte(word)
     cpu.pc += 3
     result.tClock = 16
     result.mClock = 4
@@ -3714,7 +3732,7 @@ proc execute (cpu: var CPU; opcode: uint8): TickResult =
     result.mClock = 1
     result.debugStr = "EI"
   # NO 0XFC
-  # NO 0Xfe
+  # NO 0XFD
   of 0xFE:
     let byte = cpu.mem.gameboy.readbyte(cpu.pc + 1)
     cpu.opCp(byte)

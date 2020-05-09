@@ -24,7 +24,7 @@ template sdlFailIf(cond: typed, reason: string) =
   if cond: raise SDLException.newException(
     reason & ", SDL error: " & $getError())
 
-proc getRenderer*(title: string; width: cint; height: cint): RendererPtr =
+proc getRenderer*(title: string; width: cint; height: cint): (RendererPtr, WindowPtr) =
   sdlFailIf(not sdl2.init(INIT_VIDEO or INIT_TIMER or INIT_EVENTS)):
     "SDL2 initialization failed"
   #
@@ -41,7 +41,7 @@ proc getRenderer*(title: string; width: cint; height: cint): RendererPtr =
   sdlFailIf renderer.isNil: "Renderer could not be created"
   #
   renderer.setDrawColor(r = 255, g = 255, b = 255)
-  return renderer
+  return (renderer, window)
 
 proc decodeMgbColor(colorNumber: uint8): PpuColor =
   # A nice set of psuedo-green colours for Monochrome Gameboy. Any invalid 
@@ -80,7 +80,7 @@ proc fillTestTiles*(ppu: var PPU): void =
     for b in countup(0'u16, 0xF): 
        ppu.vRAMTileDataBank0[uint16(tileOffset) + b] = tmp[b]
 
-proc drawPixelEntry(renderer: RendererPtr; ppu: PPU; x: cint; y: cint): void = 
+proc drawPixelEntry(renderer: RendererPtr; ppu: PPU; x: cint; y: cint; scale: cint): void = 
   # Draws a pixel with the appropriate color palette to the screen.
   let offset = (y * 160) + x
   let pfe = ppu.outputBuffer[offset]
@@ -97,13 +97,16 @@ proc drawPixelEntry(renderer: RendererPtr; ppu: PPU; x: cint; y: cint): void =
 
   let color = palette[pfe.data]
   renderer.setDrawColor(r = color.r, g = color.g, b = color.b)
-  renderer.drawPoint(x, y)
+  for sx in countup(1.cint, scale):
+    for sy in countup(1.cint, scale):
+      renderer.drawPoint(x * scale + sx, y * scale + sy)
 
-proc step*(renderer: RendererPtr; ppu: PPU): void =
+proc step*(renderer: RendererPtr; ppu: PPU; scale: cint): void =
   # Processes a step in the "real" gameboy.
+  # Supports scaling now!
   for y in countup(0, 143):
     for x in countup(0, 159):
-      renderer.drawPixelEntry(ppu, cint(x), cint(y))
+      renderer.drawPixelEntry(ppu, cint(x), cint(y), scale)
 
 proc renderTileMap*(renderer: RendererPtr; ppu: PPU): void =
   let palette = byteToMgbPalette(ppu.bgp)
