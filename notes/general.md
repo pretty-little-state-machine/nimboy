@@ -3,6 +3,7 @@ ValGrind is the preferred profiling method (over nimprof builtin) with
 visualization using kCacheGrind.
 
 **Compiling**
+
 You must set the following comiple flags:
 
 ```nim c --profiler:on --stacktrace:on main```
