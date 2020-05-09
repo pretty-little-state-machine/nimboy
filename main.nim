@@ -121,13 +121,12 @@ proc main(file: string = ""): void =
       refresh = true
 
     let str = game.gameboy.step().debugStr
-    if str.contains("UNKNOWN OPCODE"): #or 
-      #str.contains("BREAK!"):
+    if str.contains("UNKNOWN OPCODE") or str.contains("BREAK!"):
       #echo str
       quit("")
     else:
-      discard
-      #echo str
+      #discard
+      echo str
     #debug(game.gameboy, debugger)
     #limitFrameRate()
 

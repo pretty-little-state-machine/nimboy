@@ -13,28 +13,36 @@ proc writeByte*(gameboy: Gameboy; address: uint16; value: uint8);
 
 proc dmaTransfer(gameboy:Gameboy): void =
   # Moves a block of RAM / ROM to Video OAM (0xFE00-0xFE9F)
-  # The starting addressing is the value of the 0xFF46 register divided by / 0x100
-  #
   # TODO: This does NOT wait for 160 cycles to finish at this time
-  let startingAddress = (gameboy.readbyte(0xFF46'u16)) div 0x100'u16
+  let startingAddress = (gameboy.readbyte(0xFF46).uint16 shl 8)
+  echo "DMA TRANSFER: $" & $tohex(startingAddress)
   for address in countup(0'u16, 0x9F):
     gameboy.writeByte(0xFE00'u16 + address, gameboy.readByte(startingAddress))
 
 proc readByte*(gameboy: Gameboy, address: uint16): uint8 =
+  # 0x0000 -> 0x3FFF (Cartridge ROM Bank 00)
+  # 0x4000 -> 0x7FFF (Cartridge Rom Bank 01 / Switched)
   if address < 0x8000:
     return gameboy.cartridge.readByte(address)
-  if address < 0x9FFF:
-    return gameboy.ppu.readByte(address)
+  # 0x8000 -> 0x9FFF (VRAM - Bank 0 & 1 if Color Gameboy)  
   if address < 0xA000:
-    return 1
+    return gameboy.ppu.readByte(address)
+  # 0xA000 -> 0xBFFF (Cartridge RAM Bank 0)
   if address < 0xC000:
     return gameboy.cartridge.readByte(address)
-  if address < 0xD000:
-    return gameboy.internalRamBank0[address - 0xC000]
+  # 0xC000 -> 0xDFFF (Work RAM Bank 0)
   if address < 0xE000:
-    return gameboy.internalRamBank1[address - 0xD000]
-  if address < 0x9FFF:
+    return gameboy.internalRamBank0[address - 0xC000]
+  # 0xE000 -> 0xFDFF (Echo Ram)
+  if address < 0xFE00:
+    return gameboy.internalRamBank0[address - 0xE000]
+  # 0xFE00 -> 0xFE9F (PPU Object Attribute Map - OAM)
+  if address < 0xFEA0:
     return gameboy.ppu.readByte(address)
+  # 0xFEA0 - 0xFEFF (Unused, always 0)
+  if address < 0xFF00:
+    return 0
+  # Joypad
   if 0xFF00 == address:
     return gameboy.joypad
   # TIMER Registers
@@ -95,27 +103,41 @@ proc readByte*(gameboy: Gameboy, address: uint16): uint8 =
     return 0'u8
   # High RAM
   if address < 0xFFFF:
+    #echo "HIGH RAM READ: $" & $toHex(address)
     return gameboy.highRam[address - 0xFF80]
   # Global Interrupts Table
   if 0xFFFF == address:
     return gameboy.intEnable
 
 proc writeByte*(gameboy: Gameboy; address: uint16; value: uint8): void =
+
+  # 0x0000 -> 0x3FFF (Cartridge ROM Bank 00)
+  # 0x4000 -> 0x7FFF (Cartridge Rom Bank 01 / Switched)
   if address < 0x8000:
     gameboy.cartridge.writeByte(address, value)
+  # 0x8000 -> 0x9FFF (VRAM - Bank 0 & 1 if Color Gameboy)  
   elif address < 0xA000:
     gameboy.ppu.writeByte(address, value)
+  # 0xA000 -> 0xBFFF (Cartridge RAM Bank 0)
   elif address < 0xC000:
     gameboy.cartridge.writeByte(address, value)
-  elif address < 0xD000:
-    gameboy.internalRamBank0[address - 0xC000] = value
+  # 0xC000 -> 0xDFFF (Work RAM Bank 0)
   elif address < 0xE000:
-    gameboy.internalRamBank1[address - 0xD000] = value
-  #if address < 0x9FFF:
-    # TODO
-    #gameboy.ppu.writeByte(address, value)
+    gameboy.internalRamBank0[address - 0xC000] = value
+  # 0xE000 -> 0xFDFF (Echo Ram)
+  elif address < 0xFE00:
+    gameboy.internalRamBank0[address - 0xE000] = value
+  # 0xFE00 -> 0xFE9F (PPU Object Attribute Map - OAM)
+  elif address < 0xFEA0:
+    gameboy.ppu.writeByte(address, value)
+  # 0xFEA0 - 0xFEFF (Unused, always 0)
+  elif address < 0xFF00:
+    discard
   else:
     discard
+  # Joypad
+  if 0xFF00 == address:
+    discard  # Joypad will have the proper value either way.
   # Serial IO
   if 0xFF01 == address:
     let c = char(value)
@@ -130,9 +152,6 @@ proc writeByte*(gameboy: Gameboy; address: uint16; value: uint8): void =
       gameboy.message &= c
   if 0xFF02 == address:
     discard
-
-  if 0xFF00 == address:
-    discard  # Joypad will have the proper value either way.
   if 0xFF04 == address:
     gameboy.timer.resetDiv() # Reset the DIV on any writes.
   if 0xFF05 == address:
@@ -189,6 +208,7 @@ proc writeByte*(gameboy: Gameboy; address: uint16; value: uint8): void =
     return
   # High RAM
   if address < 0xFFFF:
+    #echo "HIGH RAM WRITE: $" & $toHex(address) & " = " & $toHex(value)
     gameboy.highRam[address - 0xFF80] = value
     return
   if 0xFFFF == address:
