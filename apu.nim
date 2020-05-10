@@ -71,7 +71,7 @@ proc setupAudioOutput(settings: AudioSettings): AudioHardware =
 
 proc registerToHz*(lowReg: uint8; highReg: uint8): uint32 =
   # Converts the gameboy 11-byte encoding to a frequency in hz.
-  # Output range of 64hz to 131,072 hz (way out of human range, 18->20khz)
+  # Output range of 64hz to 131khz (way out of human range, 18->20khz)
   #
   # Something to note here: The sound conversion is NOT a linear relationship!
   # There are 32 samples of 64 -> 65 hz but in the 800 hz section each increment

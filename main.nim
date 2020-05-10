@@ -72,7 +72,7 @@ proc handleKeyDown(game: Game, input: Input): void =
 
 proc main(file: string = ""): void =
   let (renderer, window, font) = getRenderer("Nimboy", 160, 144)
-  let (tileMapRenderer, _, _) = getRenderer("Tile Data", 256, 256)
+  #let (tileMapRenderer, _, _) = getRenderer("Tile Data", 256, 256)
 
   # Game loop, draws each frame
   var 
@@ -129,7 +129,7 @@ proc main(file: string = ""): void =
     # Only render when shifting from vSync to OAMMode
     if oamSearch == game.gameboy.ppu.mode and true == refresh:
       refresh = false
-      tileMapRenderer.renderTilemap(game.gameboy.ppu)
+      #tileMapRenderer.renderTilemap(game.gameboy.ppu)
       game.render((epochTime() - vSyncTime) * 1000)
       vSyncTime = epochTime()
 

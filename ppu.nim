@@ -27,20 +27,20 @@ proc newPPUGb*(gameboy: Gameboy): PPUGb =
 
 template toSigned(x: uint16): int16 = cast[int16](x)
 
-proc getWindowTileNibble(ppu: PPU; tileNumber: uint16; row: uint8; byte: uint8): uint8 =
+proc getTileNibble(ppu: PPU; tileNumber: uint16; row: uint8; byte: uint8): uint8 =
   # Returns the specific 2bb encoded byte of a sprite (4 dots)
   # This automatically determines the map and offset based 
   # on the LCDC settings
   
   # The tile number can either be calculated via signed or unsigned
+  # but only for backgrounds and windows. Sprites are always unsigned.
   var tmpTileNum: int
-  if testBit(ppu.lcdc, 4): 
+  if testBit(ppu.lcdc, 4) and (ftBackground == ppu.fetch.entity or ftWindow == ppu.fetch.entity):
     tmpTileNum = toSigned(tileNumber)
   else:
     tmpTileNum = int(tileNumber)
+
   let address = (tmpTileNum * 16) + int(row * 2) + int(byte)
-  #echo $tmpTileNum & ":" & $toHex(address) & ":" & $row & ":" & $byte
-  # Load in the result data  TODO: This might need multiplcate on tilenumber by 16?
   result = ppu.vRAMTileDataBank0[address]
 
 proc decode2bbTileRow*(lByte: uint8; hByte: uint8): array[8, uint8] =
@@ -86,47 +86,42 @@ proc tickOamSearch(ppu: var PPU): void =
   # Each cycle this is called is only capable of reading two of the 40 OAM entries
 
   # CIRCUIT BREAKER - Flip the state machine and reset if we're already done on previous tick
-  if 40 == ppu.oamBuffer.clock:
+  if 80 == ppu.oamBuffer.clock:
     ppu.oamBUffer.clock = 0
     ppu.mode = pixelTransfer
     return
-  
-  let oamIdx = uint8(ppu.oamBuffer.clock div 2) # Entry offset
+
+  # Read two sprites per tick
   for offset in countup(0'u8, 1'u8):
+    let entry = uint8((ppu.oamBuffer.clock) div 2)
+    if (0 != ppu.readOamXCoord(entry)) and
+      (ppu.ly + 16 >= ppu.readOamYCoord(entry)) and
+      (ppu.ly + 16 < ppu.readOamYCoord(entry) + 8): # TODO: Pixel Height here.
+      # Valid - Add to the allowed sprites on this scanline if we haven't seen it yet
+      var oamEntry: OamEntry
+      oamEntry.yCoord = ppu.readOamYCoord(entry)
+      oamEntry.xCoord = ppu.readOamXCoord(entry) - 8
+      oamEntry.tileNum = ppu.readOamTileNumber(entry)
+      oamEntry.attr = ppu.readOamAttributes(entry)
+      if not ppu.oamBuffer.data.contains(oamEntry):
+        ppu.oamBuffer.data.addLast(oamEntry)
     ppu.oamBuffer.clock += 1
-    if (0 != ppu.readOamXCoord(oamIdx + offset) and
-      (ppu.ly + 16 >= ppu.readOamYCoord(oamIdx + offset)) and
-      (ppu.ly + 16) < ppu.readOamYCoord(oamIdx + offset)):
-      # Valid - Add to the allowed sprites on this scanline
-      ppu.oamBuffer.data[ppu.oamBuffer.idx] = oamIdx + offset
-      ppu.oamBuffer.idx += 1
 
 proc resetFetch(fetch: var Fetch): void =
   # Resets the fetch operation. Hit on window changes or sprite loads
   fetch.idle = false
   fetch.mode = fmsReadTile
 
-proc tickFetch(ppu: var PPU; row: uint8): void =
-  # Executes a fetch operation.
-
-  var bitToRead = 3 # Default to Background
-  if fWillFetchWindow == ppu.fetch.willFetch:
-    bitToRead = 6
-
+proc tickFetch(ppu: var PPU; row: uint8;): void =
   # TODO: Background scrolling support
   case ppu.fetch.mode
   of fmsReadTile:
-    let offset:uint = floorDiv(ppu.fetch.tmpTileOffsetY, 8).uint * 32 + ppu.fetch.tmpTileoffsetX.uint
-    if (ppu.lcdc.testBit(bitToRead)):
-      ppu.fetch.tmpTileNum = ppu.vRAMBgMap2[offset]
-    else:
-      ppu.fetch.tmpTileNum = ppu.vRAMBgMap1[offset]
     ppu.fetch.mode = fmsReadData0
   of fmsReadData0:
-    ppu.fetch.tmpByte0 = ppu.getWindowTileNibble(ppu.fetch.tmpTileNum, row, 0)
+    ppu.fetch.tmpByte0 = ppu.getTileNibble(ppu.fetch.targetTile, row, 0)
     ppu.fetch.mode = fmsReadData1
   of fmsReadData1:
-    let byte1 = ppu.getWindowTileNibble(ppu.fetch.tmpTileNum, row, 1)
+    let byte1 = ppu.getTileNibble(ppu.fetch.targetTile, row, 1)
     let tmpData = decode2bbTileRow(ppu.fetch.tmpByte0, byte1)
     # Build up the 7 PixelFIFOEntry objects from the decoding
     for x in countup(0, 7):
@@ -134,7 +129,8 @@ proc tickFetch(ppu: var PPU; row: uint8): void =
       ppu.fetch.result[x].entity = ppu.fetch.entity
       ppu.fetch.mode = fmsIdle
     # Move the tile data up
-    ppu.fetch.tmpTileOffsetX += 1
+    if ftSprite0 != ppu.fetch.entity and ftSprite1 != ppu.fetch.entity:
+      ppu.fetch.tmpTileOffsetX += 1
   of fmsIdle:
     discard
 
@@ -146,41 +142,83 @@ proc pixelTransferComplete(ppu: var PPU): void =
     ppu.fetch.tmpTileOffsetX = 0
     ppu.fetch.willFetch = fWillFetchBackground
 
+proc getCurrentTileNumber(ppu: var PPU): uint16 = 
+  # Returns the current tile number to fetch based on type and LCDC
+  var bitToRead = 3 # Default to Background
+  if fWillFetchWindow == ppu.fetch.willFetch:
+    bitToRead = 6
+  let offset:uint = floorDiv(ppu.fetch.tmpTileOffsetY, 8).uint * 32 + ppu.fetch.tmpTileoffsetX.uint
+  # Window and background may use either map
+  if (ppu.lcdc.testBit(bitToRead)):
+    return ppu.vRAMBgMap2[offset]
+  else:
+    return ppu.vRAMBgMap1[offset]
+
 proc tickPixelTransfer(ppu: var PPU): void = 
   # Handles the Pixel Transfer mode of the PPU
+  # Assume fetch will grab the BG. This may be overidden later
+  if false == ppu.fifoPaused:
+    ppu.fetch.targetTile = ppu.getCurrentTileNumber()
+  var rowNumber = ppu.ly mod 8
 
   # Window enabled and xCoord hit? Reset fetch and start reading the window if we aren't already
-  if ppu.lcdc.testBit(5) and ppu.scx == ppu.lx and fWillFetchWindow != ppu.fetch.willFetch:
+  if ppu.lcdc.testBit(5) and ppu.wx == ppu.lx and fWillFetchWindow != ppu.fetch.willFetch:
     ppu.fetch.willFetch = fWillFetchWindow
+    ppu.fetch.entity = ftWindow
+    ppu.fifo.clear()
     ppu.fetch.resetFetch()
 
-  # TODO Add sprite detection
-  if ppu.fifo.len > 8:
-    # Mix Pixels - Up to 10 cycles based on OAM Buffer
-    #for i in countup(1'u8, ppu.oamBuffer.idx):
-      # Determine which entry wins and replace values in FIFO
-      # Decode Palette
-      #break
-    # Push Pixel to LCD Display - This MUST be 32 bit integer!
-    let offset = (ppu.ly.uint32 * 160) + ppu.lx.uint32
-    ppu.outputBuffer[offset] = ppu.fifo.popFirst()
-    ppu.lx += 1
+  # Attempt to puish the FIFO the LCD Output buffer. If a sprite is detected
+  # the FIFO will be paused and fetch reset to grab a sprite. This will be 
+  # overlayed on the existing FIFO data (first 8) before this is allowed to 
+  # finish executing.
+  block fifoOutput:
+    if ppu.fifo.len >= 8 and false == ppu.fifoPaused:
+      # Object Check!
+      for entry in mitems(ppu.oamBuffer.data):
+        if ppu.lx == entry.xCoord and false == ppu.fifoPaused and false == entry.drawn:
+          #echo "lx: " & $ppu.lx & " ly: " & $ppu.ly & " object: " & $entry.tileNum
+          entry.drawn = true # We're pulling it, scrub it from OAM
+          ppu.fifoPaused = true
+          ppu.fetch.willFetch = fWillFetchSprite
+          ppu.fetch.targetTile = entry.tileNum
+          rowNumber = ppu.ly - (entry.yCoord)
+          ppu.fetch.entity = ftSprite0
+          ppu.fetch.resetFetch()
+          break fifoOutput # Break out until we resume FIFO post pixel fetch/mix
+      # Push Pixel to LCD Display - This MUST be 32 bit integer!
+      let offset = (ppu.ly.uint32 * 160) + ppu.lx.uint32
+      let val = ppu.fifo.popFirst()
+      ppu.outputBuffer[offset] = val
+      ppu.lx += 1
 
-  # Only run the fetcher every other tick.
+  # If the FIFO is paused that means the fetcher is pulling pixels
+  # These will be mixed here into the existing FIFO data (first 8)
+  if fmsIdle == ppu.fetch.mode and true == ppu.fifoPaused:
+    for x in countup(0x0, 0x7):
+      # TODO MIX HERE - Right now it repclaces.
+      ppu.fifo[x] = ppu.fetch.result[x]
+    ppu.fetch.entity = ftBackground # Flip back to background fetches
+    ppu.fifoPaused = false
+    ppu.fetch.resetFetch()
+
+  # Only run the fetcher every other tick - 2 Mhz equivalent clock
   if false == ppu.fetch.canRun:
     ppu.fetch.canRun = true
   else:
-    ppu.tickFetch(ppu.ly mod 8)
+    ppu.tickFetch(rowNumber)
     ppu.fetch.canRun = false
 
   # Pull the data out of the fetch when FIFO has room
-  if fmsIdle == ppu.fetch.mode and ppu.fifo.len() <= 8:
+  # This is for window / background operations, not for Sprites!
+  if fmsIdle == ppu.fetch.mode and ppu.fifo.len() <= 8 and false == ppu.fifoPaused:
     for x in countup(0x0, 0x7):
       ppu.fifo.addLast(ppu.fetch.result[x])
     ppu.fetch.resetFetch()
 
   # Pixel transfer complete - Switch to HBlank
   if 160 == ppu.lx:
+    ppu.oamBuffer.data.clear()
     ppu.pixelTransferComplete()
     ppu.fetch.tmpTileOffsetY += 1
  
@@ -203,9 +241,9 @@ proc tick*(ppu: var PPU) =
   # This takes exactly 17556 machine cycles (ticks) to go through one rotation.
   # Rollover per Video Cycle - End of VBLANK
   if ppu.isRefreshed:
+    echo "------------------"
     ppu.ly = 0
     ppu.clock = 0
-    for x in ppu.oamBuffer.data.mitems: x = 0 # Flush OAM Buffer
     ppu.mode = oamSearch
     ppu.fetch.canRun = true
     ppu.fetch.tmpTileOffsetY = 0
@@ -253,5 +291,5 @@ proc writeByte*(ppu: var PPU; address: uint16; value: uint8): void =
     ppu.vRAMBgMap1[address - 0x9800] = value
   elif address < 0xA000:
     ppu.vRAMBgMap2[address - 0x9C00] = value
-
-
+  elif address < 0xFEA0:
+    ppu.oam[address - 0xFE00] = value
