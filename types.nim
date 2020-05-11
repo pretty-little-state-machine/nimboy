@@ -12,11 +12,12 @@ type
     internalRamBank0*: array[8*4096'u16, uint8] # Internal RAM ($C000-$CFFF)
     internalRamBank1*: array[8*4096'u16, uint8] # Internal RAM ($D000-$DFFF)
     highRam*: array[8*128'u16, uint8] # High RAM ($FF80-FFFE)
-    joypad*: uint8      # $FF00 - Joypad register
-    osc*: uint32        # Internal Oscillator - Master Clock - It's ok to overflow this
-    intFlag*: uint8     # Interrupt Flags - 0xFF0F
-    intEnable*: uint8   # Interrupt Enable Register - 0xFFFF
-    stopped*: bool      # STOP command affects other modules from CPU
+    joypadRaw*: uint8     # Raw input for Joypad - NOT the joypad register (it is calculated)
+    joypadRequest*: uint8 # Input for joypad register
+    osc*: uint32          # Internal Oscillator - Master Clock - It's ok to overflow this
+    intFlag*: uint8       # Interrupt Flags - 0xFF0F
+    intEnable*: uint8     # Interrupt Enable Register - 0xFFFF
+    stopped*: bool        # STOP command affects other modules from CPU
     message*: string
 
   GameboyMode* = enum
@@ -72,7 +73,7 @@ type
     vRAMTileDataBank1*: array[0x1800, uint8] # Stored in 0x8000 - 0x97FF - 384 More Tiles - Color Gameboy Only
     vRAMBgMap1*: array[0x400, uint8] # Stored in 0x9800 - 0x9BFF VG Background TileMaps 1 - 32x32 Tile Background Map
     vRAMBgMap2*: array[0x400, uint8] # Stored in 0x9C00 - 0x9FFF VG Background TileMaps 2 - 32x32 Tile Background Map
-    oam*: array[0xA0, uint8] # Sprite Attribute Table - Object Attribute Memory - 40 Sprites
+    oam*: array[0xA0, uint8] # Stored in 0xFE00 -> 0xFE9F Sprite Attribute Table - Object Attribute Memory - 40 Sprites
     # LCD Stuff
     lcdc*: uint8  # 0xFF40 - LCD Control Reigster
     stat*: uint8  # 0xFF41 - LCD Interrupt Handling
@@ -112,6 +113,7 @@ type
     oamBuffer*: OamBuffer # Used for OAM Detection on eac horizontal line
     fetch*: Fetch     # OAM Data and sprite data fetcher - Populates the FIFO
     fifo*: Deque[PixelFIFOEntry]  # Internals used for pixel rendering
+    fifoPaused*: bool # Pause during sprite fetches
     lx*: uint8        # Internal lx state
     vBlankPrimed*: bool # Used to one-shot fire vBlank interrupt when mode flips
 
@@ -122,11 +124,19 @@ type
     oamSearch, pixelTransfer, hBlank, vBlank
  
   OamBuffer* = object
-    data*: array[0x09, uint8] # Up to 10 visible sprites
-    idx*: uint8 # OAM Buffer Index - Keeps track of found sprites
+    data*: Deque[OamEntry]  # Up to 10 visible sprites
+    seen*: array[40, uint8] # Have we seen the sprite yet?
     clock*: uint32 # Internal OAM Buffer Clock - Counts up to 40 ticks then resets
 
+  OamEntry* = object
+    xCoord*: uint8
+    yCoord*: uint8
+    tileNum*: uint8
+    attr*: uint8
+    drawn*: bool
+
   Fetch* = object
+    targetTile*: uint16     # The tile number to fetch
     willFetch*: fWillFetch # What should be fetched
     tmpTileNum*: uint16    # Tmp placeholder for what tile will be read
     tmpTileOffsetX*: uint8 # The current tile that should be read

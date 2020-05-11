@@ -121,6 +121,8 @@ proc drawPixelEntry(renderer: RendererPtr; ppu: PPU; x: cint; y: cint; scale: ci
 
   let color = palette[pfe.data]
   renderer.setDrawColor(r = color.r, g = color.g, b = color.b)
+  #if ftSprite0 == pfe.entity:
+  #  renderer.setDrawColor(r = 255, g = 64, b = 64)
   for sx in countup(1.cint, scale):
     for sy in countup(1.cint, scale):
       renderer.drawPoint(x * scale + sx, y * scale + sy)

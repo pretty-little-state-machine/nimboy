@@ -28,20 +28,22 @@ proc keyDown*(input: Input; currentJoypad: uint8): uint8 =
   # Returns the byte to be placed in the gameboy register.
   result = currentJoypad
   case input:
+  # Direction Pad
   of Input.down:
-    result.clearBit(3)
+    result.clearBit(7)
+  of Input.up:
+    result.clearBit(6)
+  of Input.left:
+    result.clearBit(5)
+  of Input.right:
+    result.clearBit(4)
+  # Buttons
   of Input.start:
     result.clearBit(3)
-  of Input.up:
-    result.clearBit(2)
   of Input.select:
     result.clearBit(2)
-  of Input.left:
-    result.clearBit(1)
   of Input.b:
     result.clearBit(1)
-  of Input.right:
-    result.clearBit(0)
   of Input.a:
     result.clearBit(0)
   else:
@@ -51,20 +53,22 @@ proc keyUp*(input: Input; currentJoypad: uint8): uint8 =
   # Returns the byte to be placed in the gameboy register.
   result = currentJoypad
   case input:
+  # Direction Pad
   of Input.down:
-    result.setBit(3)
+    result.setBit(7)
+  of Input.up:
+    result.setBit(6)
+  of Input.left:
+    result.setBit(5)
+  of Input.right:
+    result.setBit(4)
+  # Buttons
   of Input.start:
     result.setBit(3)
-  of Input.up:
-    result.setBit(2)
   of Input.select:
     result.setBit(2)
-  of Input.left:
-    result.setBit(1)
   of Input.b:
     result.setBit(1)
-  of Input.right:
-    result.setBit(0)
   of Input.a:
     result.setBit(0)
   else:

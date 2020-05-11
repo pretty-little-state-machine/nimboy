@@ -68,7 +68,7 @@ proc handleKeyDown(game: Game, input: Input): void =
     game.window.setSize(160 * 4, 144 * 4)
     game.scale = 4         
   else:
-    game.gameboy.joypad = input.keyDown(game.gameboy.joypad)
+    game.gameboy.joypadRaw = input.keyDown(game.gameboy.joypadRaw)
 
 proc main(file: string = ""): void =
   let (renderer, window, font) = getRenderer("Nimboy", 160, 144)
@@ -122,7 +122,7 @@ proc main(file: string = ""): void =
         game.handleKeyDown(evt.key.keysym.scancode.toInput)
       of KeyUp:
         let input = evt.key.keysym.scancode.toInput
-        game.gameboy.joypad = input.keyUp(game.gameboy.joypad)
+        game.gameboy.joypadRaw = input.keyUp(game.gameboy.joypadRaw)
       else:
         discard
 
