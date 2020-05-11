@@ -148,9 +148,12 @@ proc writeByte*(gameboy: Gameboy; address: uint16; value: uint8): void =
     if value == 10:
       gameboy.message &= " "
       stdout.write(gameboy.message)
-      if "Passed" in gameboy.message or "Failed" in gameboy.message:
+      if "Passed" in gameboy.message :
         echo ""
-        quit()
+        quit(QuitSuccess)
+      if "Failed" in gameboy.message:
+        echo ""
+        quit(QuitFailure)
       gameboy.message = ""
     else:
       gameboy.message &= c
